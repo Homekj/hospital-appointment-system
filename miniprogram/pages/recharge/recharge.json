@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "page-nav": "/components/page-nav/page-nav",
+    "pay-drawer": "/components/pay-drawer/index",
+    "van-field": "@vant/weapp/field/index",
+    "van-button": "@vant/weapp/button/index",
+    "van-toast": "@vant/weapp/toast/index"
+  },
+  "navigationStyle": "custom"
+}

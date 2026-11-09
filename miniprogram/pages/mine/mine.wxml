@@ -1,0 +1,71 @@
+<view class="page page--tab mine">
+  <page-nav title="我的" back="{{ false }}" />
+
+  <view wx:if="{{ loggedIn }}" class="mine__profile card">
+    <button class="mine__avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+      <view class="mine__avatar mine__avatar--lg">
+        <image wx:if="{{ displayAvatar }}" class="mine__avatar-img" src="{{ displayAvatar }}" mode="aspectFill" />
+        <van-icon wx:else name="user-o" size="40px" color="#00B894" />
+      </view>
+    </button>
+    <view class="mine__info">
+      <input
+        class="mine__name-input"
+        type="nickname"
+        value="{{ wxNickname }}"
+        placeholder="点击设置微信昵称"
+        bind:input="onNicknameInput"
+        bind:blur="onNicknameBlur"
+      />
+      <text class="mine__meta">{{ balanceText ? '余额 ¥' + balanceText : (user.phone || '点击头像可更换') }}</text>
+    </view>
+    <text class="mine__logout" bindtap="onLogout">退出</text>
+  </view>
+
+  <view wx:else class="mine__hero card">
+    <view class="mine__hero-top">
+      <button class="mine__avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+        <view class="mine__avatar mine__avatar--hero">
+          <image wx:if="{{ displayAvatar }}" class="mine__avatar-img" src="{{ displayAvatar }}" mode="aspectFill" />
+          <van-icon wx:else name="user-o" size="48px" color="#00B894" />
+        </view>
+      </button>
+      <view class="mine__hero-text">
+        <input
+          class="mine__nickname-input"
+          type="nickname"
+          value="{{ wxNickname }}"
+          placeholder="点击填写微信昵称"
+          bind:input="onNicknameInput"
+        />
+        <text class="mine__hero-desc">预约挂号 · 智能导诊 · 订单管理</text>
+      </view>
+    </view>
+    <van-button
+      type="primary"
+      block
+      round
+      icon="wechat"
+      custom-class="btn-primary mine__wx-btn"
+      loading="{{ wxLoginLoading }}"
+      bind:click="onWxLogin"
+    >微信一键登录</van-button>
+  </view>
+
+  <view class="card mine__menu">
+    <view
+      wx:for="{{ menuItems }}"
+      wx:key="title"
+      class="mine__menu-item"
+      data-item="{{ item }}"
+      bindtap="onMenuTap"
+    >
+      <view class="mine__menu-icon">
+        <van-icon name="{{ item.icon }}" size="20px" color="#00B894" />
+      </view>
+      <text class="mine__menu-title">{{ item.title }}</text>
+      <view wx:if="{{ item.badge && unreadCount > 0 }}" class="mine__badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+      <van-icon name="arrow" size="14px" color="#ccc" />
+    </view>
+  </view>
+</view>

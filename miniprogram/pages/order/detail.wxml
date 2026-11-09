@@ -1,0 +1,105 @@
+<view class="page order-detail" wx:if="{{ order }}">
+  <page-nav title="订单详情" />
+  <scroll-view class="order-detail__scroll" scroll-y>
+    <view class="order-detail__content">
+      <order-status-header status="{{ order.displayStatus || order.rawStatus || order.status }}" location="{{ order.location }}" />
+      <visit-progress wx:if="{{ order.displayStatus || order.rawStatus }}" status="{{ order.displayStatus || order.rawStatus }}" />
+      <detail-list items="{{ detailItems }}" />
+
+      <view wx:if="{{ order.canPay }}" class="card pay-card">
+        <view class="card__title">选择支付方式</view>
+        <view
+          class="pay-item {{ payMethod === item.id ? 'pay-item--active' : '' }}"
+          wx:for="{{ payMethods }}"
+          wx:key="id"
+          data-id="{{ item.id }}"
+          bindtap="onPayMethodTap"
+        >
+          <view class="pay-item__left">
+            <view class="pay-item__icon pay-item__icon--{{ item.id }}">{{ item.id === 'wechat' ? '微' : (item.id === 'alipay' ? '支' : '余') }}</view>
+            <view>
+              <text class="pay-item__name">{{ item.name }}</text>
+              <text wx:if="{{ item.desc }}" class="pay-item__desc">{{ item.desc }}</text>
+            </view>
+          </view>
+          <view class="pay-item__radio {{ payMethod === item.id ? 'pay-item__radio--on' : '' }}"></view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+  <view class="order-detail__actions safe-bottom">
+    <van-button
+      wx:if="{{ order.canPay }}"
+      block
+      round
+      type="primary"
+      custom-class="btn-primary"
+      loading="{{ paying && !payDrawerVisible }}"
+      bind:click="onPay"
+    >立即支付 {{ feeText }}</van-button>
+    <van-button
+      wx:if="{{ order.canCancel && order.rawStatus === 'unpaid' }}"
+      block
+      round
+      plain
+      bind:click="onCancel"
+    >取消订单</van-button>
+    <van-button
+      wx:if="{{ order.canCancel && order.rawStatus !== 'unpaid' }}"
+      block
+      round
+      plain
+      bind:click="onCancel"
+    >取消预约</van-button>
+    <van-button
+      wx:if="{{ order.canCheckIn }}"
+      block
+      round
+      type="primary"
+      custom-class="btn-primary"
+      bind:click="onCheckIn"
+    >到院签到</van-button>
+    <van-button
+      wx:if="{{ order.canPayPrescription }}"
+      block
+      round
+      type="primary"
+      custom-class="btn-primary"
+      bind:click="onPrescription"
+    >支付药费 {{ rxFeeText }}</van-button>
+    <van-button
+      wx:if="{{ order.canViewRecord }}"
+      block
+      round
+      plain
+      color="#00B894"
+      bind:click="onViewRecord"
+    >查看病历</van-button>
+    <van-button
+      wx:if="{{ order.canViewPrescription }}"
+      block
+      round
+      plain
+      bind:click="onViewPrescription"
+    >查看处方</van-button>
+    <van-button
+      wx:if="{{ order.status === 'completed' && !order.evaluated }}"
+      block
+      round
+      plain
+      color="#00B894"
+      bind:click="onEvaluate"
+    >评价医生</van-button>
+  </view>
+</view>
+
+<pay-drawer
+  wx:if="{{ payDrawerVisible }}"
+  show="{{ payDrawerVisible }}"
+  method="{{ payDrawerMethod }}"
+  amount="{{ order.fee }}"
+  balance="{{ balance }}"
+  loading="{{ paying }}"
+  bind:close="onPayDrawerClose"
+  bind:confirm="onPayDrawerConfirm"
+/>

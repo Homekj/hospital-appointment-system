@@ -1,0 +1,51 @@
+@import '../../styles/pay.wxss';
+
+.confirm__scroll {
+  height: calc(100vh - 46px - var(--bottom-bar-height));
+}
+
+.confirm__content {
+  padding: 24rpx 32rpx;
+}
+
+.confirm__info {
+  padding: 8rpx 32rpx;
+}
+
+.confirm__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--color-border);
+}
+
+.confirm__row:last-child {
+  border-bottom: none;
+}
+
+.confirm__label {
+  font-size: var(--font-body);
+  color: var(--color-text-secondary);
+}
+
+.confirm__value {
+  font-size: var(--font-body);
+  color: var(--color-text);
+}
+
+.confirm__value--primary {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.confirm__value--fee {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.card__title {
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
+  margin-bottom: 8rpx;
+}

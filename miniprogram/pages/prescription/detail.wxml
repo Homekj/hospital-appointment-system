@@ -1,0 +1,55 @@
+<view class="page rx-detail" wx:if="{{ prescription }}">
+  <page-nav title="电子处方" />
+  <scroll-view class="rx-detail__scroll" scroll-y>
+    <view class="rx-detail__content">
+      <view class="card rx-detail__summary">
+        <text class="rx-detail__status">{{ prescription.statusText }}</text>
+        <text class="rx-detail__amount">{{ amountText }}</text>
+      </view>
+      <view class="card">
+        <view class="card__title">药品明细</view>
+        <detail-list items="{{ items }}" />
+      </view>
+      <view wx:if="{{ canPay }}" class="card pay-card">
+        <view class="card__title">选择支付方式</view>
+        <view
+          class="pay-item {{ payMethod === item.id ? 'pay-item--active' : '' }}"
+          wx:for="{{ payMethods }}"
+          wx:key="id"
+          data-id="{{ item.id }}"
+          bindtap="onPayMethodTap"
+        >
+          <view class="pay-item__left">
+            <view class="pay-item__icon pay-item__icon--{{ item.id }}">{{ item.id === 'wechat' ? '微' : (item.id === 'alipay' ? '支' : '余') }}</view>
+            <view>
+              <text class="pay-item__name">{{ item.name }}</text>
+              <text wx:if="{{ item.desc }}" class="pay-item__desc">{{ item.desc }}</text>
+            </view>
+          </view>
+          <view class="pay-item__radio {{ payMethod === item.id ? 'pay-item__radio--on' : '' }}"></view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+  <view wx:if="{{ canPay }}" class="rx-detail__footer safe-bottom">
+    <van-button
+      block
+      round
+      type="primary"
+      custom-class="btn-primary"
+      loading="{{ paying && !payDrawerVisible }}"
+      bind:click="onPay"
+    >支付 {{ amountText }}</van-button>
+  </view>
+</view>
+
+<pay-drawer
+  wx:if="{{ payDrawerVisible }}"
+  show="{{ payDrawerVisible }}"
+  method="{{ payDrawerMethod }}"
+  amount="{{ prescription.totalAmount }}"
+  balance="{{ balance }}"
+  loading="{{ paying }}"
+  bind:close="onPayDrawerClose"
+  bind:confirm="onPayDrawerConfirm"
+/>

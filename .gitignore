@@ -1,0 +1,17 @@
+node_modules/
+miniprogram/node_modules/
+**/node_modules/
+**/dist/
+**/target/
+.env
+.env.*
+!.env.example
+miniprogram/project.private.config.json
+codex-analysis/
+.workbuddy-ai/
+.idea/
+.vscode/
+*.iml
+*.log
+.DS_Store
+Thumbs.db
