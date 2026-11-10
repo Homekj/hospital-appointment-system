@@ -1,93 +1,189 @@
 package com.aaa.backend.config;
-//拦截请求，从请求头里查 token，没带或者伪造的直接踢出去（返回 401）
 
+import com.aaa.backend.auth.CurrentUserContext;
+import com.aaa.backend.auth.JwtBlacklistService;
+import com.aaa.backend.auth.RoleAccessPolicy;
+import com.aaa.backend.auth.dto.LoginUser;
+import com.aaa.backend.common.ApiResponse;
+import com.aaa.backend.common.BusinessException;
 import com.aaa.backend.common.JwtUtil;
-import com.aaa.backend.common.Result;
-import tools.jackson.databind.ObjectMapper;
+import com.aaa.backend.service.LoginService;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import tools.jackson.databind.ObjectMapper;
 
-/**
- * JWT 登录拦截器
- */
+import java.util.Date;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
+    private static final Logger log = LoggerFactory.getLogger(JwtInterceptor.class);
 
-    // 用于将 Result 对象转换为 JSON 字符串
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private final LoginService loginService;
+    private final CurrentUserContext currentUserContext;
+    private final ObjectMapper objectMapper;
+    private final RoleAccessPolicy roleAccessPolicy;
+    private final JwtBlacklistService jwtBlacklistService;
+
+    public JwtInterceptor(
+            LoginService loginService,
+            CurrentUserContext currentUserContext,
+            ObjectMapper objectMapper,
+            RoleAccessPolicy roleAccessPolicy,
+            JwtBlacklistService jwtBlacklistService
+    ) {
+        this.loginService = loginService;
+        this.currentUserContext = currentUserContext;
+        this.objectMapper = objectMapper;
+        this.roleAccessPolicy = roleAccessPolicy;
+        this.jwtBlacklistService = jwtBlacklistService;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-
-        // 1. 放行浏览器的跨域预检请求 (OPTIONS)。如果不放行，前端跨域请求会报错
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        // 1. OPTIONS 预检请求直接放行
+        String method = request.getMethod();
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
 
-        // 2. 从请求头中获取 Token (前端通常放在 Authorization 字段里)
-        String token = request.getHeader("Authorization");
+        // 获取去除 contextPath 后的请求路径
+        String requestURI = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        String path = requestURI;
+        if (contextPath != null && contextPath.length() > 0 && path.startsWith(contextPath)) {
+            path = path.substring(contextPath.length());
+        }
 
-        // 3. 判断 Token 是否为空
-        if (token == null || token.trim().isEmpty()) {
-            writeErrorResponse(response, 401, "未登录或 Token 缺失，请先登录");
-            return false; // 拦截，不放行
+        // 2. 明确列出的公开接口放行
+        if (isPublicPath(method, path)) {
+            return true;
+        }
+
+        // 3. 其他 /api/** 接口必须有 Authorization: Bearer <token>
+        String authorization = request.getHeader("Authorization");
+
+        if (authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            writeError(response, 401, "请先登录");
+            return false;
+        }
+
+        String token = authorization.substring(7).trim();
+        if (token.isEmpty()) {
+            writeError(response, 401, "请先登录");
+            return false;
         }
 
         try {
-            // 4. 解析 Token (如果 Token 过期、伪造或格式错误，这里会抛出异常)
+            // 4. 解析 Token 的 sub 作为用户 ID
             Claims claims = JwtUtil.parseToken(token);
 
-            // 5. 提取 Token 中的用户信息和角色
-            String role = (String) claims.get("role");
-            String userId = String.valueOf(claims.get("userId"));
+            String tokenId = claims.getId();
+            Date expiration = claims.getExpiration();
 
-            // 6. 将解析出的信息存入 request，后续 Controller 可以直接通过 request.getAttribute 获取
-            request.setAttribute("userId", userId);
-            request.setAttribute("role", role);
-
-            // =====================================================================
-            // 7. 核心权限控制：判断当前请求路径
-            // 如果是访问后台管理接口（路径包含 /admin），则必须要求角色为 admin
-            // =====================================================================
-            String requestURI = request.getRequestURI();
-            if (requestURI.startsWith("/admin") || requestURI.startsWith("/api/admin")) {
-                if (!"admin".equals(role)) {
-                    writeErrorResponse(response, 403, "无权限访问，该操作仅限系统管理员");
-                    return false;
-                }
+            if (tokenId == null || tokenId.isBlank() || expiration == null) {
+                writeError(response, 401, "登录令牌无效，请重新登录");
+                return false;
             }
 
-            // 8. 校验通过，放行请求
-            return true;
+            if (jwtBlacklistService.isRevoked(tokenId)) {
+                writeError(response, 401, "登录已退出，请重新登录");
+                return false;
+            }
 
+            Long userId = Long.valueOf(claims.getSubject());
+            LoginUser user = loginService.currentUser(userId);
+
+            if(!roleAccessPolicy.isAllowed(path,user.role())){
+                writeError(response, 403, "无权访问此资源");
+                return false;
+            }
+            currentUserContext.set(
+                    user,
+                    tokenId,
+                    expiration.toInstant()
+            );
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            // 7. Token 格式错误、签名错误、过期等，统一返回 401
+            writeError(response, 401, "登录已过期或无效，请重新登录");
+            return false;
+        } catch (BusinessException e) {
+            writeError(response, e.getErrorCode().code(), e.getMessage());
+            return false;
         } catch (Exception e) {
-            // 解析异常（如 Token 过期、签名不匹配等）
-            writeErrorResponse(response, 401, "登录已过期或 Token 无效，请重新登录");
+            // 数据库等服务异常不能伪装成认证失败
+            log.error("Failed to authenticate API request", e);
+            writeError(response, 500, "服务器内部错误");
             return false;
         }
     }
 
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        // 8. 请求结束后清理 CurrentUserContext
+        currentUserContext.clear();
+    }
+
     /**
-     * 辅助方法：向前端输出标准的 JSON 错误信息
-     * 防止前端收到 HTML 乱码，导致无法正常弹窗提示
+     * 判断是否为公开接口
      */
-    private void writeErrorResponse(HttpServletResponse response, int status, String message) {
-        try {
-            // 设置 HTTP 状态码 (401 未登录，403 无权限)
-            response.setStatus(status);
-            // 设置响应类型为 JSON，字符集为 UTF-8
-            response.setContentType("application/json;charset=UTF-8");
-
-            // 调用你项目的统一返回类 Result.error()
-            Result errorResult = Result.error(message);
-
-            // 将对象转换为 JSON 字符串并写回给前端
-            response.getWriter().write(objectMapper.writeValueAsString(errorResult));
-        } catch (Exception ex) {
-            ex.printStackTrace();
+    private boolean isPublicPath(String method, String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
         }
+
+        // POST /api/auth/login
+        if ("POST".equalsIgnoreCase(method) && "/api/auth/login".equals(path)) {
+            return true;
+        }
+
+        // POST /api/auth/wx-login
+        if ("POST".equalsIgnoreCase(method) && "/api/auth/wx-login".equals(path)) {
+            return true;
+        }
+
+        // GET /api/departments
+        if ("GET".equalsIgnoreCase(method) && "/api/departments".equals(path)) {
+            return true;
+        }
+
+        // GET /api/doctors 和 GET /api/doctors/{id}
+        if ("GET".equalsIgnoreCase(method) && (path.equals("/api/doctors") || path.startsWith("/api/doctors/"))) {
+            return true;
+        }
+
+        // GET /api/schedules
+        if ("GET".equalsIgnoreCase(method) && "/api/schedules".equals(path)) {
+            return true;
+        }
+
+        // POST /api/triage/analyze
+        if ("POST".equalsIgnoreCase(method) && "/api/triage/analyze".equals(path)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 认证错误的响应方法
+     */
+    private void writeError(HttpServletResponse response, int code, String message) throws IOException {
+        response.setStatus(code);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("application/json");
+
+        objectMapper.writeValue(
+                response.getWriter(),
+                ApiResponse.failure(code, message)
+        );
     }
 }
