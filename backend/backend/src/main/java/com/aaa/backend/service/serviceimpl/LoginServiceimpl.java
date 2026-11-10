@@ -18,7 +18,7 @@ import java.util.Map;
 @Service
 public class LoginServiceimpl implements LoginService {
     @Autowired
-    private LoginDao loginDao;
+    private UserDao loginDao;
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
     @Autowired
