@@ -1,68 +1,80 @@
 package com.aaa.backend.service.serviceimpl;
 
+import com.aaa.backend.auth.dto.LoginResponse;
+import com.aaa.backend.auth.dto.LoginUser;
+import com.aaa.backend.common.BusinessErrorCode;
+import com.aaa.backend.common.BusinessException;
 import com.aaa.backend.common.JwtUtil;
-import com.aaa.backend.common.Result;
 import com.aaa.backend.dao.UserDao;
 import com.aaa.backend.entity.SysUser;
 import com.aaa.backend.service.LoginService;
-import com.aaa.backend.vo.SysUserVo;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
 public class LoginServiceimpl implements LoginService {
-    @Autowired
-    private UserDao loginDao;
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
-    @Autowired
-    private RedisTemplate redisTemplate;
+    private final UserDao userDao;
+    private final BCryptPasswordEncoder passwordEncoder;
+
+    public LoginServiceimpl(UserDao userDao, BCryptPasswordEncoder passwordEncoder) {
+        this.userDao = userDao;
+        this.passwordEncoder = passwordEncoder;
+    }
+
     @Override
-    public Result selectByUsernamePassword(String username, String password){
-        QueryWrapper<SysUser> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("username",username);
-        SysUser sysUser = loginDao.selectOne(queryWrapper);
-        if (sysUser == null){
-            return Result.error("账号或密码错误");
+    public LoginResponse login(String username, String password) {
+        QueryWrapper<SysUser> query = new QueryWrapper<>();
+        query.eq("username", username).eq("deleted", 0);
+        SysUser user = userDao.selectOne(query);
+
+        if (user == null || user.getPassword() == null
+                || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new BusinessException(BusinessErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        boolean isMatch = passwordEncoder.matches(password, sysUser.getPassword());
-        if (!isMatch) {
-            return Result.error("账号或密码错误");
+        if (!Integer.valueOf(1).equals(user.getStatus())) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "账号已禁用");
         }
-        String role;
-        String redirectUrl;
-        if ("admin".equals(sysUser.getUsername())) {
-            // 管理员
-            role = "admin";
-            redirectUrl = "/admin/dashboard"; // 后台首页路径
-        } else if (sysUser.getUsername().startsWith("doctor")) {
-            // 医生账号（你表里医生的账号都是 doctor 开头的）
-            role = "doctor";
-            redirectUrl = "/doctor/home";     // 医生工作台路径
-        } else {
-            // 其他视为患者
-            role = "patient";
-            redirectUrl = "/patient/appointment"; // 患者预约页面路径
+
+        String role = normalizeRole(user.getRole());
+        if ("DOCTOR".equals(role) && user.getDoctorId() == null) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "医生账号未绑定医生信息");
         }
+
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", sysUser.getId());
-        claims.put("username", sysUser.getUsername());
+        claims.put("sub", user.getId().toString());
+        claims.put("userId", user.getId());
         claims.put("role", role);
         String token = JwtUtil.createToken(claims);
-        Map<String, Object> data = new HashMap<>();
-        data.put("token", token);             // 唯一标识
-        data.put("role", role);               // 角色
-        data.put("redirectUrl", redirectUrl); // 前端跳转路径
-        data.put("nickname", sysUser.getNickname());
-        data.put("avatar", sysUser.getAvatar());
 
-        return Result.ok(data);
+        LoginUser loginUser = new LoginUser(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getAvatar(),
+                user.getBalance(),
+                role,
+                user.getDoctorId(),
+                user.getStatus()
+        );
+        return new LoginResponse(token, loginUser);
+    }
 
+    private String normalizeRole(String databaseRole) {
+        if (databaseRole == null || databaseRole.isBlank()) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "账号角色未配置");
+        }
+        return switch (databaseRole.trim().toUpperCase(Locale.ROOT)) {
+            case "ADMIN" -> "ADMIN";
+            case "DOCTOR" -> "DOCTOR";
+            case "USER", "PATIENT" -> "USER";
+            default -> throw new BusinessException(BusinessErrorCode.FORBIDDEN, "账号角色未配置");
+        };
     }
 }
