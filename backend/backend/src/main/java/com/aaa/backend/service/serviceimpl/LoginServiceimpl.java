@@ -27,6 +27,45 @@ public class LoginServiceimpl implements LoginService {
     }
 
     @Override
+    public LoginUser currentUser(Long userId) {
+        SysUser user = userDao.selectById(userId);
+
+        if (user == null
+                || !Integer.valueOf(0).equals(user.getDeleted())
+                || !Integer.valueOf(1).equals(user.getStatus())) {
+            throw new BusinessException(
+                    BusinessErrorCode.UNAUTHORIZED,
+                    "登录状态已失效，请重新登录"
+            );
+        }
+
+        String role = normalizeRole(user.getRole());
+
+        if ("DOCTOR".equals(role) && user.getDoctorId() == null) {
+            throw new BusinessException(
+                    BusinessErrorCode.UNAUTHORIZED,
+                    "医生账号未绑定医生信息"
+            );
+
+        }
+        return new LoginUser(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getAvatar(),
+                user.getBalance(),
+                role,
+                user.getDoctorId(),
+                user.getStatus()
+        );
+
+
+
+    }
+
+    @Override
     public LoginResponse login(String username, String password) {
         QueryWrapper<SysUser> query = new QueryWrapper<>();
         query.eq("username", username).eq("deleted", 0);

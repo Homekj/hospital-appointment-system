@@ -8,6 +8,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 public class JwtUtil {
 
@@ -28,6 +29,7 @@ public class JwtUtil {
     public static String createToken(Map<String, Object> claims) {
         return Jwts.builder()
                 .claims(claims) // 设置自定义数据
+                .id(UUID.randomUUID().toString())
                 .issuedAt(new Date()) // 签发时间
                 .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME)) // 过期时间
                 .signWith(SECRET_KEY) // 签名算法
