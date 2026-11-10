@@ -26,6 +26,7 @@ public class Doctor { // 医生表
 
     // 职称 (如：主任医师、副主任医师等)
     private String title;
+    private Department department;
 
     // 性别 (tinyint 映射 Integer，通常 1:男, 2:女 或 0:女, 1:男)
     private Integer gender;

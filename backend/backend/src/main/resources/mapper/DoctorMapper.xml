@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.backend.dao.DoctorMapper">
+
+    <!-- 分页联表查询医生列表 -->
+    <select id="pageDoctorWithDept" resultType="com.aaa.backend.vo.DoctorVo">
+        SELECT
+        d.id,
+        d.name,
+        d.title,
+        d.gender,
+        d.avatar,
+        d.intro,
+        d.status,
+        d.department_id,
+        dept.name AS departmentName,
+        u.username AS username
+        FROM doctor d
+        LEFT JOIN department dept ON d.department_id = dept.id
+        LEFT JOIN sys_user u ON u.doctor_id = d.id
+        <where>
+            <!-- 1. 按医生姓名模糊查询（传了 name 才生效） -->
+            <if test="query.name != null and query.name != ''">
+                AND d.name LIKE CONCAT('%', #{query.name}, '%')
+            </if>
+
+            <!-- 2. 按科室名称精确查询（传了 departmentName 才生效） -->
+            <if test="query.departmentName != null and query.departmentName != ''">
+                AND dept.name = #{query.departmentName}
+            </if>
+        </where>
+        ORDER BY d.id DESC
+    </select>
+
+</mapper>

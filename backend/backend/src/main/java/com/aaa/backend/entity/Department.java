@@ -28,10 +28,10 @@ public class Department { // 科室表
     private String location;
 
     // 排序权重 (自动映射: sort_order -> sortOrder)
-    private Integer sortOrder;
+    private Integer sortOrder = 0;
 
     // 状态 (1:启用, 0:禁用)
-    private Integer status;
+    private Integer status=1;
 
     // 创建时间
     private LocalDateTime createTime;

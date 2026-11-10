@@ -18,7 +18,7 @@ import java.util.Map;
 @Service
 public class LoginServiceimpl implements LoginService {
     @Autowired
-    private LoginDao loginDao;
+    private UserDao userDao;
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
     @Autowired
@@ -27,7 +27,7 @@ public class LoginServiceimpl implements LoginService {
     public Result selectByUsernamePassword(String username, String password){
         QueryWrapper<SysUser> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username",username);
-        SysUser sysUser = loginDao.selectOne(queryWrapper);
+        SysUser sysUser = userDao.selectOne(queryWrapper);
         if (sysUser == null){
             return Result.error("账号或密码错误");
         }
