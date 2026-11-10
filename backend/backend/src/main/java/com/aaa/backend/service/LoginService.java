@@ -1,7 +1,7 @@
 package com.aaa.backend.service;
 
-import com.aaa.backend.common.Result;
+import com.aaa.backend.auth.dto.LoginResponse;
 
 public interface LoginService {
-    public Result selectByUsernamePassword(String username,String password);
+    LoginResponse login(String username, String password);
 }
