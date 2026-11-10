@@ -4,7 +4,7 @@
 >
 > 更新时间：`2026-11-09`
 >
-> 适用仓库：`Homekj/Hospital-Appointment-Management`
+> 适用仓库：[StreamH/Hospital-Appointment-Management](https://gitee.com/StreamH/Hospital-Appointment-Management)（Gitee）
 >
 > 适用范围：微信患者端小程序、Vue 管理后台、Spring Boot 后端、医生工作台
 
