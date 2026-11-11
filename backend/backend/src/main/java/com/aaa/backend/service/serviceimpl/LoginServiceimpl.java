@@ -9,17 +9,37 @@ import com.aaa.backend.dao.UserDao;
 import com.aaa.backend.entity.SysUser;
 import com.aaa.backend.service.LoginService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class LoginServiceimpl implements LoginService {
+    private static final String MOCK_WX_OPENID = "mock-wx-login-project-demo";
+
     private final UserDao userDao;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final RestClient restClient = RestClient.create();
+
+    @Value("${wechat.miniprogram.mock-login:false}")
+    private boolean mockWxLoginEnabled;
+
+    @Value("${wechat.miniprogram.app-id:}")
+    private String miniProgramAppId;
+
+    @Value("${wechat.miniprogram.secret:}")
+    private String miniProgramSecret;
 
     public LoginServiceimpl(UserDao userDao, BCryptPasswordEncoder passwordEncoder) {
         this.userDao = userDao;
@@ -84,23 +104,102 @@ public class LoginServiceimpl implements LoginService {
             throw new BusinessException(BusinessErrorCode.FORBIDDEN, "医生账号未绑定医生信息");
         }
 
+        return createLoginResponse(user, role);
+    }
+
+    @Override
+    public LoginResponse wxLogin(String code, String nickname) {
+        if (mockWxLoginEnabled) {
+            SysUser demoUser = findByOpenId(MOCK_WX_OPENID);
+            if (demoUser == null) {
+                demoUser = createWxUser(MOCK_WX_OPENID, "演示患者");
+            }
+            return loginAsWxUser(demoUser);
+        }
+
+        if (miniProgramAppId == null || miniProgramAppId.isBlank()
+                || miniProgramSecret == null || miniProgramSecret.isBlank()) {
+            throw new BusinessException(BusinessErrorCode.INTERNAL_ERROR, "微信登录暂不可用");
+        }
+
+        URI uri = UriComponentsBuilder.fromUriString("https://api.weixin.qq.com/sns/jscode2session")
+                .queryParam("appid", miniProgramAppId)
+                .queryParam("secret", miniProgramSecret)
+                .queryParam("js_code", code)
+                .queryParam("grant_type", "authorization_code")
+                .build()
+                .encode()
+                .toUri();
+
+        WxCodeSessionResponse session;
+        try {
+            session = restClient.get().uri(uri).retrieve().body(WxCodeSessionResponse.class);
+        } catch (RestClientException exception) {
+            throw new BusinessException(BusinessErrorCode.INTERNAL_ERROR, "微信登录暂不可用");
+        }
+        if (session == null || session.errcode() != null || session.openid() == null
+                || session.openid().isBlank()) {
+            throw new BusinessException(BusinessErrorCode.UNAUTHORIZED, "微信登录凭证无效");
+        }
+
+        SysUser user = findByOpenId(session.openid());
+        if (user == null) {
+            user = createWxUser(session.openid(), nickname);
+        }
+        return loginAsWxUser(user);
+    }
+
+    private LoginResponse loginAsWxUser(SysUser user) {
+        if (!Integer.valueOf(0).equals(user.getDeleted())) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "账号已停用");
+        }
+        if (!Integer.valueOf(1).equals(user.getStatus())) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "账号已禁用");
+        }
+        String role = normalizeRole(user.getRole());
+        if (!"USER".equals(role)) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "该微信账号不能用于患者登录");
+        }
+        return createLoginResponse(user, role);
+    }
+
+    private SysUser findByOpenId(String openid) {
+        QueryWrapper<SysUser> query = new QueryWrapper<>();
+        query.eq("openid", openid);
+        return userDao.selectOne(query);
+    }
+
+    private SysUser createWxUser(String openid, String nickname) {
+        SysUser user = new SysUser();
+        user.setUsername("wx_" + UUID.randomUUID().toString().replace("-", ""));
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID() + UUID.randomUUID().toString()));
+        user.setNickname(nickname == null || nickname.isBlank() ? "微信用户" : nickname.trim());
+        user.setOpenid(openid);
+        user.setBalance(BigDecimal.ZERO);
+        user.setStatus(1);
+        user.setRole("USER");
+        user.setDeleted(0);
+        try {
+            userDao.insert(user);
+            return user;
+        } catch (DuplicateKeyException exception) {
+            SysUser concurrentUser = findByOpenId(openid);
+            if (concurrentUser != null) {
+                return concurrentUser;
+            }
+            throw exception;
+        }
+    }
+
+    private LoginResponse createLoginResponse(SysUser user, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", user.getId().toString());
         claims.put("userId", user.getId());
         claims.put("role", role);
         String token = JwtUtil.createToken(claims);
-
         LoginUser loginUser = new LoginUser(
-                user.getId(),
-                user.getUsername(),
-                user.getNickname(),
-                user.getEmail(),
-                user.getPhone(),
-                user.getAvatar(),
-                user.getBalance(),
-                role,
-                user.getDoctorId(),
-                user.getStatus()
+                user.getId(), user.getUsername(), user.getNickname(), user.getEmail(), user.getPhone(),
+                user.getAvatar(), user.getBalance(), role, user.getDoctorId(), user.getStatus()
         );
         return new LoginResponse(token, loginUser);
     }
@@ -115,5 +214,8 @@ public class LoginServiceimpl implements LoginService {
             case "USER", "PATIENT" -> "USER";
             default -> throw new BusinessException(BusinessErrorCode.FORBIDDEN, "账号角色未配置");
         };
+    }
+
+    private record WxCodeSessionResponse(String openid, String session_key, Integer errcode, String errmsg) {
     }
 }

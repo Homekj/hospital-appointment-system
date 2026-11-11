@@ -10,6 +10,7 @@ import com.aaa.backend.profile.dto.ProfileUpdateRequest;
 import com.aaa.backend.service.LoginService;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProfileServiceImpl implements ProfileService {
@@ -28,6 +29,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public LoginUser updateProfile(Long userId, ProfileUpdateRequest request) {
         String nickname = request.nickname().trim();
         String email = blankToNull(request.email());
@@ -53,6 +55,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public LoginUser updateAvatar(Long userId, String path) {
         if (!fileStorageService.isOwnedAvatarPath(userId, path)) {
             throw new BusinessException(

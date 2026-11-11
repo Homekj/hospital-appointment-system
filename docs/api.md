@@ -362,6 +362,7 @@ unpaid --管理员取消--> cancelled
 - 首次登录自动创建 `USER` 账号。
 - 之后按 `openid` 查找并登录已有用户。
 - 不得把 `AppSecret` 写入仓库或返回客户端。
+- 当前项目演示默认启用固定演示患者登录，不调用微信换码接口；设置 `WECHAT_MINIPROGRAM_MOCK_LOGIN=false` 后才使用真实 `code2Session`。真实或部署环境必须关闭模拟登录并配置 AppID / AppSecret。
 
 成功响应与账号密码登录相同，`user.role` 固定为 `USER`。
 

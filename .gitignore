@@ -16,3 +16,6 @@ codex-analysis/
 .DS_Store
 Thumbs.db
 /backend/backend/uploads/
+
+# Codex local workspace metadata
+.codex/
