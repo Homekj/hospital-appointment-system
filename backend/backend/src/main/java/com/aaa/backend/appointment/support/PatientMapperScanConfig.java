@@ -2,6 +2,7 @@ package com.aaa.backend.appointment.support;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator;
 
 /**
  * 患者业务模块自己的 Mapper 扫描入口。
@@ -18,6 +19,6 @@ import org.springframework.context.annotation.Configuration;
         "com.aaa.backend.notification.dao",
         "com.aaa.backend.wallet.dao",
         "com.aaa.backend.prescription.dao"
-})
+}, nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class)
 public class PatientMapperScanConfig {
 }
