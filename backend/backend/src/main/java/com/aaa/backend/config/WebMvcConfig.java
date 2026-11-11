@@ -1,5 +1,6 @@
 package com.aaa.backend.config;
 
+import com.aaa.backend.file.FileStorageService;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -28,14 +29,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
-        String location = root.toUri().toString();
+        Path avatarRoot = Paths.get(uploadDir).toAbsolutePath().normalize()
+                .resolve(FileStorageService.AVATAR_CATEGORY).normalize();
+        String location = avatarRoot.toUri().toString();
 
         if (!location.endsWith("/")) {
             location += "/";
         }
 
-        registry.addResourceHandler("/uploads/**")
+        // Public static access is limited to profile avatars. Sensitive files must use an
+        // authenticated download endpoint with an authorization check or a time-limited URL.
+        registry.addResourceHandler(FileStorageService.PUBLIC_AVATAR_PATH + "**")
                 .addResourceLocations(location);
     }
 }

@@ -3,6 +3,8 @@ package com.aaa.backend.file;
 import com.aaa.backend.common.BusinessErrorCode;
 import com.aaa.backend.common.BusinessException;
 import com.aaa.backend.file.dto.UploadFileResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +21,10 @@ import java.util.UUID;
 
 @Service
 public class FileStorageService {
+    public static final String AVATAR_CATEGORY = "avatar";
+    public static final String PUBLIC_AVATAR_PATH = "/uploads/avatar/";
+
+    private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
     private static final long MAX_FILE_BYTES = 5L * 1024 * 1024;
 
     private static final Set<String> ALLOWED_EXTENSIONS =
@@ -41,10 +47,10 @@ public class FileStorageService {
 
         String actualCategory =
                 category == null || category.isBlank()
-                        ? "avatar"
+                        ? AVATAR_CATEGORY
                         : category.trim().toLowerCase(Locale.ROOT);
 
-        if (!"avatar".equals(actualCategory)) {
+        if (!AVATAR_CATEGORY.equals(actualCategory)) {
             throw new BusinessException(
                     BusinessErrorCode.BAD_REQUEST,
                     "当前只支持头像上传"
@@ -77,6 +83,7 @@ public class FileStorageService {
         try {
             content = file.getBytes();
         } catch (IOException e) {
+            log.error("Failed to read uploaded avatar bytes, userId={}", userId, e);
             throw new BusinessException(
                     BusinessErrorCode.INTERNAL_ERROR,
                     "读取上传文件失败"
@@ -92,7 +99,7 @@ public class FileStorageService {
 
         Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
         Path userDirectory = root
-                .resolve("avatar")
+                .resolve(AVATAR_CATEGORY)
                 .resolve(userId.toString())
                 .normalize();
 
@@ -122,14 +129,14 @@ public class FileStorageService {
                     StandardOpenOption.WRITE
             );
         } catch (IOException e) {
+            log.error("Failed to store uploaded avatar, userId={}", userId, e);
             throw new BusinessException(
                     BusinessErrorCode.INTERNAL_ERROR,
                     "保存上传文件失败"
             );
         }
 
-        String publicPath =
-                "/uploads/avatar/" + userId + "/" + fileName;
+        String publicPath = PUBLIC_AVATAR_PATH + userId + "/" + fileName;
 
         return new UploadFileResponse(publicPath, publicPath);
     }
@@ -139,7 +146,7 @@ public class FileStorageService {
             return false;
         }
 
-        String prefix = "/uploads/avatar/" + userId + "/";
+        String prefix = PUBLIC_AVATAR_PATH + userId + "/";
         if (!path.startsWith(prefix)) {
             return false;
         }
@@ -161,7 +168,7 @@ public class FileStorageService {
 
         Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
         Path userDirectory = root
-                .resolve("avatar")
+                .resolve(AVATAR_CATEGORY)
                 .resolve(userId.toString())
                 .normalize();
         Path storedFile = userDirectory.resolve(fileName).normalize();

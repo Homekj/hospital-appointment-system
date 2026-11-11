@@ -5,6 +5,7 @@ import com.aaa.backend.auth.JwtBlacklistService;
 import com.aaa.backend.auth.dto.LoginRequest;
 import com.aaa.backend.auth.dto.LoginResponse;
 import com.aaa.backend.auth.dto.LoginUser;
+import com.aaa.backend.auth.dto.WxLoginRequest;
 import com.aaa.backend.common.ApiResponse;
 import com.aaa.backend.service.LoginService;
 import jakarta.validation.Valid;
@@ -39,6 +40,15 @@ public class LoginController {
     ) {
         return ApiResponse.success(
                 loginService.login(request.username(), request.password())
+        );
+    }
+
+    @PostMapping("/wx-login")
+    public ApiResponse<LoginResponse> wxLogin(
+            @Valid @RequestBody WxLoginRequest request
+    ) {
+        return ApiResponse.success(
+                loginService.wxLogin(request.code(), request.nickname())
         );
     }
 
