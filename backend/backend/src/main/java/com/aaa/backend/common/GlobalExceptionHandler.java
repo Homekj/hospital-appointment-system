@@ -11,10 +11,13 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
@@ -61,6 +64,14 @@ public class GlobalExceptionHandler {
         log.error("Unhandled request error", exception);
         return ResponseEntity.status(500)
                 .body(ApiResponse.failure(500, BusinessErrorCode.INTERNAL_ERROR.defaultMessage()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(
+            MaxUploadSizeExceededException exception
+    ) {
+        return ResponseEntity.status(413)
+                .body(ApiResponse.failure(413, "文件不能超过5MB"));
     }
 
     private ResponseEntity<ApiResponse<Void>> badRequest(String message) {
