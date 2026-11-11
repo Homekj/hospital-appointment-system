@@ -1,0 +1,53 @@
+package com.aaa.backend.prescription.controller;
+
+import com.aaa.backend.appointment.support.CurrentUser;
+import com.aaa.backend.common.ApiResponse;
+import com.aaa.backend.prescription.dto.PayPrescriptionRequest;
+import com.aaa.backend.prescription.service.PrescriptionService;
+import com.aaa.backend.prescription.vo.PrescriptionDetailVO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 患者处方接口（docs/api.md 9.1 - 9.3）。
+ * 横跨 /api/appointments 与 /api/prescriptions 两个前缀，因此直接挂在 /api 下。
+ */
+@RestController
+@RequestMapping("/api")
+@CrossOrigin
+public class PrescriptionController {
+
+    private final PrescriptionService prescriptionService;
+
+    public PrescriptionController(PrescriptionService prescriptionService) {
+        this.prescriptionService = prescriptionService;
+    }
+
+    @GetMapping("/appointments/{id}/prescription")
+    public ApiResponse<PrescriptionDetailVO> byAppointment(@PathVariable Long id,
+                                                           HttpServletRequest request) {
+        Long userId = CurrentUser.requirePatientId(request);
+        return ApiResponse.success(prescriptionService.byAppointment(userId, id));
+    }
+
+    @GetMapping("/prescriptions/{id}")
+    public ApiResponse<PrescriptionDetailVO> byId(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = CurrentUser.requirePatientId(request);
+        return ApiResponse.success(prescriptionService.byId(userId, id));
+    }
+
+    @PostMapping("/prescriptions/{id}/pay")
+    public ApiResponse<PrescriptionDetailVO> pay(@PathVariable Long id,
+                                                 @Valid @RequestBody PayPrescriptionRequest body,
+                                                 HttpServletRequest request) {
+        Long userId = CurrentUser.requirePatientId(request);
+        return ApiResponse.success(prescriptionService.pay(userId, id, body.payMethod()));
+    }
+}

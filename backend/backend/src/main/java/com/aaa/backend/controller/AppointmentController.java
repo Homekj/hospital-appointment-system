@@ -35,7 +35,11 @@ import java.util.List;
  *     <li>PUT {id}/status    合法流转内改状态</li>
  * </ul>
  */
-@RestController
+/**
+ * 显式指定 bean 名：远程患者端也有一个 AppointmentController（/api/appointments），
+ * 两者简单类名相同，默认 bean 名会冲突导致整个应用启动失败。
+ */
+@RestController("adminAppointmentController")
 @RequestMapping({"/api/admin/appointments", "/admin/appointment"})
 public class AppointmentController {
 

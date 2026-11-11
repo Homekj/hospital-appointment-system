@@ -168,11 +168,11 @@ public class AppointmentServiceImpl implements AppointmentService {
             return Result.error("预约状态已变更，请刷新后重试");
         }
 
-        int decreased = appointmentDao.decreaseBookedCount(appointment.getScheduleId());
+        int decreased = appointmentDao.decreaseBookedCount(appointment.getScId());
         if (decreased == 0) {
             // 数据本来就不一致时宁可少减，也绝不把 booked_count 写成负数
             log.warn("取消预约 {} 时号源未回滚：schedule_id={} 不存在或 booked_count 已为 0",
-                    id, appointment.getScheduleId());
+                    id, appointment.getScId());
         }
         return Result.ok("取消成功，号源已回滚");
     }

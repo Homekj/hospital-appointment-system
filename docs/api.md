@@ -362,6 +362,7 @@ unpaid --管理员取消--> cancelled
 - 首次登录自动创建 `USER` 账号。
 - 之后按 `openid` 查找并登录已有用户。
 - 不得把 `AppSecret` 写入仓库或返回客户端。
+- 模拟登录默认关闭。仅在本地演示时显式设置 `WECHAT_MINIPROGRAM_MOCK_LOGIN=true`，启用固定演示患者登录且不调用微信换码接口；真实或部署环境应保持关闭并配置 AppID / AppSecret。
 
 成功响应与账号密码登录相同，`user.role` 固定为 `USER`。
 
@@ -1772,6 +1773,8 @@ Redis 不可作为号源是否售出的唯一依据。Redis 不可用时，登�
 - 数据库密码、JWT 密钥、微信 `AppID`、`AppSecret` 通过环境变量或本地未跟踪配置提供。
 - 生产环境必须使用 HTTPS；局域网开发可使用 HTTP。
 - CORS 只允许明确配置的前端地址，不使用任意来源与凭证组合。
+- 当前默认允许 `http://localhost:5173`、`http://127.0.0.1:5173` 和参考管理端 `http://192.168.0.48:5173`；可用 `CORS_ALLOWED_ORIGINS` 以逗号分隔覆盖。
+- 旧 `/admin/**` 接口仅为迁移兼容保留，现已纳入 JWT 拦截且只允许 `ADMIN`；新增管理接口必须使用本文件第 12 节的 `/api/admin/**` 契约。
 
 ## 18. 小程序兼容性验收
 

@@ -67,7 +67,7 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 3. 其他 /api/** 接口必须有 Authorization: Bearer <token>
+        // 3. 其他受保护接口必须有 Authorization: Bearer <token>
         String authorization = request.getHeader("Authorization");
 
         if (authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
@@ -186,4 +186,8 @@ public class JwtInterceptor implements HandlerInterceptor {
                 ApiResponse.failure(code, message)
         );
     }
+
+
+
+
 }

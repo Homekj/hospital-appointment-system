@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -20,6 +19,10 @@ import java.time.LocalDateTime;
  *     <li>status 严格取 sql/system.sql 注释里的七个值，流转规则见
  *         {@link com.aaa.backend.entity.enums.AppointmentStatus}。</li>
  * </ul>
+ *
+ * <p>字段名 apId / uid / scId 与 amount 的 Double 类型保持原样：
+ * 远程患者端 appointment.service.AppointmentService 依赖这套 API，
+ * 合并后不能因本地改名而让对方代码编译失败。
  */
 @Data
 @NoArgsConstructor
@@ -28,13 +31,13 @@ import java.time.LocalDateTime;
 public class Appointment {
 
     @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
+    private Long apId;
 
     @TableField("user_id")
-    private Long userId;
+    private Long uid;
 
     @TableField("schedule_id")
-    private Long scheduleId;
+    private Long scId;
 
     @TableField("patient_name")
     private String patientName;
@@ -47,7 +50,7 @@ public class Appointment {
     private String idCard;
 
     /** 挂号费，下单时确定，后台只读 */
-    private BigDecimal amount;
+    private Double amount;
 
     @TableField("pay_method")
     private String payMethod;
