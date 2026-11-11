@@ -11,4 +11,5 @@ public record LoginRequest(
         @Size(max = 72, message = "password 不能超过 72 个字符")
         String password
 ) {
+
 }
