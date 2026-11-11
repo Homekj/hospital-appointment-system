@@ -14,6 +14,12 @@ public class RoleAccessPolicy {
             return "ADMIN".equals(role);
         }
 
+        //旧后台管理接口 /admin/**（科室/医生/排班等）同样仅 ADMIN。
+        //缺少这条时，一旦把 /admin/** 纳入拦截，末尾默认 return false 会导致全 403。
+        if (isUnder(path,"/admin")){
+            return "ADMIN".equals(role);
+        }
+
         //医生域仅DOCTOR
         if (isUnder(path,"/api/doctor")){
             return "DOCTOR".equals(role);

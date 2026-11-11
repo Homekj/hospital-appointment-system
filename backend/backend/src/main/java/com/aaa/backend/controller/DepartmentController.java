@@ -11,30 +11,31 @@ import org.springframework.web.bind.annotation.*;
 public class DepartmentController {
     @Autowired
     private DepartmentService departmentService;
-    // 兼容历史拼写 Lile，建议使用规范的 Like
-    @GetMapping({"/findByLikeName"})
-    public Result findByLikeName(String name){
-        Result result = departmentService.getByLikeName(name);
-        return result;
+
+    /** 兼容历史拼写 Lile，新代码请统一使用 findByLikeName */
+    @GetMapping({"/findByLikeName", "/findByLileName"})
+    public Result findByLikeName(String name) {
+        return departmentService.getByLikeName(name);
     }
+
     @PostMapping("/insert")
-    public Result insertDepartment(@RequestBody Department department){
-        Result result =departmentService.addDepartment(department);
-        return result;
+    public Result insertDepartment(@RequestBody Department department) {
+        return departmentService.addDepartment(department);
     }
+
     @PutMapping("/update")
-    public Result updateDepartment(@RequestBody Department department){
-        Result result = departmentService.updateDepartment(department);
-        return result;
+    public Result updateDepartment(@RequestBody Department department) {
+        return departmentService.updateDepartment(department);
     }
+
     @DeleteMapping("/delete")
-    public Result deleteDepartment(Long id){
-        Result result = departmentService.deleteDepartment(id);
-        return result;
+    public Result deleteDepartment(@RequestParam Long id) {
+        return departmentService.deleteDepartment(id);
     }
+
+    /** 启用科室下拉框，返回 [{id, name}] */
     @GetMapping("/findALLDepartment")
-    public Result findALLDepartment(){
-        Result result = departmentService.getByDepartmentName();
-        return result;
+    public Result findALLDepartment() {
+        return departmentService.getByDepartmentName();
     }
 }
