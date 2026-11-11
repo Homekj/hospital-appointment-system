@@ -1,6 +1,7 @@
 package com.aaa.backend.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -26,6 +27,10 @@ public class Doctor { // 医生表
 
     // 职称 (如：主任医师、副主任医师等)
     private String title;
+
+    // 联表展示用，不是 doctor 表的物理列
+    @TableField(exist = false)
+    private Department department;
 
     // 性别 (tinyint 映射 Integer，通常 1:男, 2:女 或 0:女, 1:男)
     private Integer gender;
