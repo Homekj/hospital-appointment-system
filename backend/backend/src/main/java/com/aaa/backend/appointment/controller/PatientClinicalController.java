@@ -2,13 +2,11 @@ package com.aaa.backend.appointment.controller;
 
 import com.aaa.backend.appointment.dto.CreateReviewRequest;
 import com.aaa.backend.appointment.service.PatientClinicalService;
-import com.aaa.backend.appointment.support.CurrentUser;
 import com.aaa.backend.appointment.vo.AppointmentReviewVO;
 import com.aaa.backend.appointment.vo.ConsultationVO;
+import com.aaa.backend.auth.CurrentUserContext;
 import com.aaa.backend.common.ApiResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,26 +20,27 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/appointments")
-@CrossOrigin
 public class PatientClinicalController {
 
     private final PatientClinicalService patientClinicalService;
+    private final CurrentUserContext currentUserContext;
 
-    public PatientClinicalController(PatientClinicalService patientClinicalService) {
+    public PatientClinicalController(PatientClinicalService patientClinicalService,
+                                     CurrentUserContext currentUserContext) {
         this.patientClinicalService = patientClinicalService;
+        this.currentUserContext = currentUserContext;
     }
 
     @GetMapping("/{id}/consultation")
-    public ApiResponse<ConsultationVO> consultation(@PathVariable Long id, HttpServletRequest request) {
-        Long userId = CurrentUser.requirePatientId(request);
+    public ApiResponse<ConsultationVO> consultation(@PathVariable Long id) {
+        Long userId = currentUserContext.requireUserId();
         return ApiResponse.success(patientClinicalService.consultation(userId, id));
     }
 
     @PostMapping("/{id}/review")
     public ApiResponse<AppointmentReviewVO> review(@PathVariable Long id,
-                                                   @Valid @RequestBody CreateReviewRequest body,
-                                                   HttpServletRequest request) {
-        Long userId = CurrentUser.requirePatientId(request);
+                                                   @Valid @RequestBody CreateReviewRequest body) {
+        Long userId = currentUserContext.requireUserId();
         return ApiResponse.success(patientClinicalService.review(userId, id, body));
     }
 }

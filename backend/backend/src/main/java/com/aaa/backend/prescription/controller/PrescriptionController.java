@@ -1,13 +1,11 @@
 package com.aaa.backend.prescription.controller;
 
-import com.aaa.backend.appointment.support.CurrentUser;
+import com.aaa.backend.auth.CurrentUserContext;
 import com.aaa.backend.common.ApiResponse;
 import com.aaa.backend.prescription.dto.PayPrescriptionRequest;
 import com.aaa.backend.prescription.service.PrescriptionService;
 import com.aaa.backend.prescription.vo.PrescriptionDetailVO;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,33 +19,32 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api")
-@CrossOrigin
 public class PrescriptionController {
 
     private final PrescriptionService prescriptionService;
+    private final CurrentUserContext currentUserContext;
 
-    public PrescriptionController(PrescriptionService prescriptionService) {
+    public PrescriptionController(PrescriptionService prescriptionService, CurrentUserContext currentUserContext) {
         this.prescriptionService = prescriptionService;
+        this.currentUserContext = currentUserContext;
     }
 
     @GetMapping("/appointments/{id}/prescription")
-    public ApiResponse<PrescriptionDetailVO> byAppointment(@PathVariable Long id,
-                                                           HttpServletRequest request) {
-        Long userId = CurrentUser.requirePatientId(request);
+    public ApiResponse<PrescriptionDetailVO> byAppointment(@PathVariable Long id) {
+        Long userId = currentUserContext.requireUserId();
         return ApiResponse.success(prescriptionService.byAppointment(userId, id));
     }
 
     @GetMapping("/prescriptions/{id}")
-    public ApiResponse<PrescriptionDetailVO> byId(@PathVariable Long id, HttpServletRequest request) {
-        Long userId = CurrentUser.requirePatientId(request);
+    public ApiResponse<PrescriptionDetailVO> byId(@PathVariable Long id) {
+        Long userId = currentUserContext.requireUserId();
         return ApiResponse.success(prescriptionService.byId(userId, id));
     }
 
     @PostMapping("/prescriptions/{id}/pay")
     public ApiResponse<PrescriptionDetailVO> pay(@PathVariable Long id,
-                                                 @Valid @RequestBody PayPrescriptionRequest body,
-                                                 HttpServletRequest request) {
-        Long userId = CurrentUser.requirePatientId(request);
+                                                 @Valid @RequestBody PayPrescriptionRequest body) {
+        Long userId = currentUserContext.requireUserId();
         return ApiResponse.success(prescriptionService.pay(userId, id, body.payMethod()));
     }
 }

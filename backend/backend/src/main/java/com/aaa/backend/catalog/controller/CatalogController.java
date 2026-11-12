@@ -6,7 +6,6 @@ import com.aaa.backend.catalog.vo.DoctorVO;
 import com.aaa.backend.catalog.vo.ScheduleVO;
 import com.aaa.backend.common.ApiResponse;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +18,6 @@ import java.util.List;
 /** 公开接口：/api/departments、/api/doctors、/api/doctors/{id}、/api/schedules。 */
 @RestController
 @RequestMapping("/api")
-@CrossOrigin
 public class CatalogController {
 
     private final CatalogService catalogService;
