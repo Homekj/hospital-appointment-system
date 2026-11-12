@@ -19,17 +19,39 @@
         LEFT JOIN department dept ON d.department_id = dept.id
         LEFT JOIN sys_user u ON u.doctor_id = d.id
         <where>
-            <!-- 1. 按医生姓名模糊查询（传了 name 才生效） -->
             <if test="query.name != null and query.name != ''">
                 AND d.name LIKE CONCAT('%', #{query.name}, '%')
             </if>
-
-            <!-- 2. 按科室名称精确查询（传了 departmentName 才生效） -->
             <if test="query.departmentName != null and query.departmentName != ''">
                 AND dept.name = #{query.departmentName}
             </if>
+            <if test="query.departmentId != null">
+                AND d.department_id = #{query.departmentId}
+            </if>
+            <if test="query.status != null">
+                AND d.status = #{query.status}
+            </if>
         </where>
         ORDER BY d.id DESC
+    </select>
+
+    <!-- 按 ID 查询医生详情 -->
+    <select id="selectDoctorVoById" resultType="com.aaa.backend.vo.DoctorVo">
+        SELECT
+        d.id,
+        d.name,
+        d.title,
+        d.gender,
+        d.avatar,
+        d.intro,
+        d.status,
+        d.department_id,
+        dept.name AS departmentName,
+        u.username AS username
+        FROM doctor d
+        LEFT JOIN department dept ON d.department_id = dept.id
+        LEFT JOIN sys_user u ON u.doctor_id = d.id
+        WHERE d.id = #{id}
     </select>
 
 </mapper>

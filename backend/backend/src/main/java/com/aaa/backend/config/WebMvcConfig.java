@@ -33,16 +33,31 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
-                .addPathPatterns("/api/**", "/admin/**");
+                // /api/** 为新版业务接口，/admin/** 为旧后台管理接口（科室/医生/排班/预约）。
+                // RoleAccessPolicy 已统一为 /api/admin 与 /admin 仅 ADMIN 可访问。
+                .addPathPatterns("/api/**", "/admin/**")
+                // 登录接口显式放行（JwtInterceptor.isPublicPath 也会放行，此处作为双保险）
+                .excludePathPatterns(
+                        "/api/auth/login",
+                        "/api/auth/wx-login",
+                        "/api/login",
+                        "/error",
+                        "/favicon.ico",
+                        "/uploads/**"
+                );
     }
 
+    /**
+     * 采用远程的明确来源白名单（可用 CORS_ALLOWED_ORIGINS 覆盖）。
+     * 额外暴露 Content-Disposition：预约管理 CSV 导出需要前端读取文件名。
+     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With")
-                .exposedHeaders("Authorization")
+                .exposedHeaders("Authorization", "Content-Disposition")
                 .allowCredentials(false)
                 .maxAge(3600);
     }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.backend.dao.ScheduleDao">
+
+    <select id="pageScheduleWithNames" resultType="com.aaa.backend.vo.ScheduleVO">
+        SELECT
+        s.id,
+        s.doctor_id,
+        s.schedule_date,
+        s.time_slot,
+        s.total_quota,
+        s.booked_count,
+        s.status,
+        d.name AS doctorName,
+        dept.name AS departmentName,
+        (s.total_quota - s.booked_count) AS remainQuota
+        FROM schedule s
+        LEFT JOIN doctor d ON s.doctor_id = d.id
+        LEFT JOIN department dept ON d.department_id = dept.id
+        <where>
+            <if test="query.doctorId != null">
+                AND s.doctor_id = #{query.doctorId}
+            </if>
+            <!-- 注意这里：按科室筛选是查医生表的 department_id -->
+            <if test="query.departmentId != null">
+                AND d.department_id = #{query.departmentId}
+            </if>
+            <if test="query.status != null">
+                AND s.status = #{query.status}
+            </if>
+            <if test="query.scheduleDateStart != null and query.scheduleDateStart != ''">
+                AND s.schedule_date &gt;= #{query.scheduleDateStart}
+            </if>
+            <if test="query.scheduleDateEnd != null and query.scheduleDateEnd != ''">
+                AND s.schedule_date &lt;= #{query.scheduleDateEnd}
+            </if>
+            <if test="query.scheduleDate != null and query.scheduleDate != ''">
+                AND s.schedule_date = #{query.scheduleDate}
+            </if>
+        </where>
+        ORDER BY s.schedule_date DESC, s.time_slot ASC
+    </select>
+
+</mapper>

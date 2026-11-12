@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.backend.dao.AppointmentDao">
+
+    <!-- 四表联查列：appointment a / schedule s / doctor d / department dept -->
+    <sql id="appointmentColumns">
+        a.id,
+        a.user_id AS userId,
+        a.schedule_id AS scheduleId,
+        d.id AS doctorId,
+        d.name AS doctorName,
+        dept.id AS departmentId,
+        dept.name AS departmentName,
+        s.schedule_date AS scheduleDate,
+        s.time_slot AS timeSlot,
+        a.patient_name AS patientName,
+        a.patient_phone AS patientPhone,
+        a.amount,
+        a.pay_method AS payMethod,
+        a.pay_time AS payTime,
+        a.status,
+        a.remark,
+        a.create_time AS createTime,
+        a.update_time AS updateTime
+    </sql>
+
+    <sql id="appointmentJoins">
+        FROM appointment a
+        LEFT JOIN schedule s ON a.schedule_id = s.id
+        LEFT JOIN doctor d ON s.doctor_id = d.id
+        LEFT JOIN department dept ON d.department_id = dept.id
+    </sql>
+
+    <!--
+      日期区间固定按就诊日期 s.schedule_date，不按 a.create_time。
+      keyword 同时匹配就诊人姓名与手机号。
+    -->
+    <sql id="appointmentWhere">
+        <where>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND (a.patient_name LIKE CONCAT('%', #{query.keyword}, '%')
+                     OR a.patient_phone LIKE CONCAT('%', #{query.keyword}, '%'))
+            </if>
+            <if test="query.status != null and query.status != ''">
+                AND a.status = #{query.status}
+            </if>
+            <if test="query.doctorId != null">
+                AND s.doctor_id = #{query.doctorId}
+            </if>
+            <if test="query.departmentId != null">
+                AND d.department_id = #{query.departmentId}
+            </if>
+            <if test="query.scheduleDateStart != null and query.scheduleDateStart != ''">
+                AND s.schedule_date &gt;= #{query.scheduleDateStart}
+            </if>
+            <if test="query.scheduleDateEnd != null and query.scheduleDateEnd != ''">
+                AND s.schedule_date &lt;= #{query.scheduleDateEnd}
+            </if>
+            <if test="query.scheduleDate != null and query.scheduleDate != ''">
+                AND s.schedule_date = #{query.scheduleDate}
+            </if>
+        </where>
+    </sql>
+
+    <select id="pageAppointment" resultType="com.aaa.backend.vo.AppointmentVO">
+        SELECT <include refid="appointmentColumns"/>
+        <include refid="appointmentJoins"/>
+        <include refid="appointmentWhere"/>
+        ORDER BY s.schedule_date DESC, s.time_slot DESC, a.id DESC
+    </select>
+
+    <select id="selectDetail" resultType="com.aaa.backend.vo.AppointmentVO">
+        SELECT <include refid="appointmentColumns"/>
+        <include refid="appointmentJoins"/>
+        WHERE a.id = #{id}
+    </select>
+
+    <select id="listForExport" resultType="com.aaa.backend.vo.AppointmentVO">
+        SELECT <include refid="appointmentColumns"/>
+        <include refid="appointmentJoins"/>
+        <include refid="appointmentWhere"/>
+        ORDER BY s.schedule_date DESC, s.time_slot DESC, a.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 条件更新：当前状态不匹配时影响行数为 0，用来挡并发重复操作 -->
+    <update id="updateStatusIfMatch">
+        UPDATE appointment
+        SET status = #{toStatus}, update_time = NOW()
+        WHERE id = #{id} AND status = #{fromStatus}
+    </update>
+
+    <!-- 原子回滚号源，booked_count > 0 保证不会减成负数 -->
+    <update id="decreaseBookedCount">
+        UPDATE schedule
+        SET booked_count = booked_count - 1
+        WHERE id = #{scheduleId} AND booked_count &gt; 0
+    </update>
+
+    <!-- 患者端下单占用号源，与回滚保持同一套原子写法，且防止超卖 -->
+    <update id="increaseBookedCount">
+        UPDATE schedule
+        SET booked_count = booked_count + 1
+        WHERE id = #{scheduleId} AND booked_count &lt; total_quota
+    </update>
+
+</mapper>
