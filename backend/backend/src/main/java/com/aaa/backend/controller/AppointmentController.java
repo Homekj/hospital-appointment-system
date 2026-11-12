@@ -1,6 +1,8 @@
 package com.aaa.backend.controller;
 
-import com.aaa.backend.common.Result;
+import com.aaa.backend.admin.support.ResultBridge;
+import com.aaa.backend.common.ApiResponse;
+import com.aaa.backend.common.PageResult;
 import com.aaa.backend.dto.AppointmentStatusDTO;
 import com.aaa.backend.service.AppointmentService;
 import com.aaa.backend.vo.AppointmentQuery;
@@ -46,43 +48,71 @@ public class AppointmentController {
     @Autowired
     private AppointmentService appointmentService;
 
-    /** 分页列表：keyword / status / doctorId / departmentId / scheduleDateStart / scheduleDateEnd */
+    /**
+     * 分页列表（api.md 12.5）。
+     *
+     * <p>文档参数 current / size / patientName / startDate / endDate 在这里适配为
+     * 旧模块的 pageNum / pageSize / keyword / scheduleDateStart / scheduleDateEnd；
+     * 旧参数仍可直接使用，两套前端都不会被破坏。
+     */
     @GetMapping(value = {"", "/page"})
-    public Result page(AppointmentQuery query) {
-        return appointmentService.page(query);
+    public ApiResponse<PageResult<Object>> page(
+            AppointmentQuery query,
+            @RequestParam(required = false) Integer current,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        AppointmentQuery condition = query == null ? new AppointmentQuery() : query;
+        if (current != null) {
+            condition.setPageNum(current);
+        }
+        if (size != null) {
+            condition.setPageSize(size);
+        }
+        if (notBlank(patientName) && condition.getKeyword() == null) {
+            condition.setKeyword(patientName.trim());
+        }
+        if (notBlank(startDate) && condition.getScheduleDateStart() == null) {
+            condition.setScheduleDateStart(startDate.trim());
+        }
+        if (notBlank(endDate) && condition.getScheduleDateEnd() == null) {
+            condition.setScheduleDateEnd(endDate.trim());
+        }
+        return ResultBridge.page(appointmentService.page(condition));
     }
 
     /** 详情（与医生、排班模块一致的 ?id= 写法） */
     @GetMapping("/detail")
-    public Result detail(@RequestParam Long id) {
-        return appointmentService.detail(id);
+    public ApiResponse<Object> detail(@RequestParam Long id) {
+        return ResultBridge.data(appointmentService.detail(id));
     }
 
     /** 详情（RESTful 写法，正则限定纯数字，避免与 /export 等字面量路径冲突） */
     @GetMapping("/{id:\\d+}")
-    public Result detailById(@PathVariable Long id) {
-        return appointmentService.detail(id);
+    public ApiResponse<Object> detailById(@PathVariable Long id) {
+        return ResultBridge.data(appointmentService.detail(id));
     }
 
     /** 七个状态字典及各自允许的流转，供前端下拉与操作按钮渲染 */
     @GetMapping("/status-options")
-    public Result statusOptions() {
-        return appointmentService.statusOptions();
+    public ApiResponse<Object> statusOptions() {
+        return ResultBridge.data(appointmentService.statusOptions());
     }
 
     @PutMapping("/{id}/cancel")
-    public Result cancel(@PathVariable Long id) {
-        return appointmentService.cancel(id);
+    public ApiResponse<Object> cancel(@PathVariable Long id) {
+        return ResultBridge.data(appointmentService.cancel(id));
     }
 
     @PutMapping("/{id}/check-in")
-    public Result checkIn(@PathVariable Long id) {
-        return appointmentService.checkIn(id);
+    public ApiResponse<Object> checkIn(@PathVariable Long id) {
+        return ResultBridge.data(appointmentService.checkIn(id));
     }
 
     @PutMapping("/{id}/status")
-    public Result changeStatus(@PathVariable Long id, @RequestBody AppointmentStatusDTO dto) {
-        return appointmentService.changeStatus(id, dto);
+    public ApiResponse<Object> changeStatus(@PathVariable Long id, @RequestBody AppointmentStatusDTO dto) {
+        return ResultBridge.data(appointmentService.changeStatus(id, dto));
     }
 
     /**
@@ -101,7 +131,7 @@ public class AppointmentController {
         AppointmentQuery condition = query == null ? new AppointmentQuery() : query;
         String error = appointmentService.validateQuery(condition);
         if (error != null) {
-            return ResponseEntity.badRequest().body(Result.error(error));
+            return ResponseEntity.badRequest().body(ApiResponse.failure(400, error));
         }
         List<AppointmentVO> rows = appointmentService.listForExport(condition);
         byte[] body = buildCsv(rows).getBytes(StandardCharsets.UTF_8);
@@ -112,6 +142,10 @@ public class AppointmentController {
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .contentLength(body.length)
                 .body(body);
+    }
+
+    private boolean notBlank(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String buildCsv(List<AppointmentVO> rows) {

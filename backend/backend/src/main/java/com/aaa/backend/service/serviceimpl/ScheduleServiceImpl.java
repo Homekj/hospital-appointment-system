@@ -301,6 +301,19 @@ public class ScheduleServiceImpl implements ScheduleService {
         return Result.ok("批量排班成功！共生成 " + toInsertList.size() + " 条排班记录。");
     }
 
+    /** api.md 12.4 排班详情；旧 /admin/schedule/** 没有该接口，这里补齐且不影响旧逻辑。 */
+    @Override
+    public Result detail(Long id) {
+        if (id == null) {
+            return Result.error("排班ID不能为空");
+        }
+        Schedule schedule = scheduleDao.selectById(id);
+        if (schedule == null) {
+            return Result.error("排班记录不存在");
+        }
+        return Result.ok(schedule);
+    }
+
     private String validateQuota(Integer quota) {
         if (quota == null) {
             return "总号源不能为空";

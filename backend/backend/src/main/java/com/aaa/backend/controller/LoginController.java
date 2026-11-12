@@ -9,16 +9,23 @@ import com.aaa.backend.auth.dto.WxLoginRequest;
 import com.aaa.backend.common.ApiResponse;
 import com.aaa.backend.service.LoginService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * api.md 6.1~6.4 认证接口。
+ *
+ * <p>按文档 17 要求，CORS 统一由 WebMvcConfig 的明确来源白名单管理，
+ * 这里刻意不加 @CrossOrigin（它默认放开任意来源，会绕过白名单）。
+ * 登录失败语义由 LoginServiceimpl 抛出 BusinessException：
+ * 401 用户名或密码错误 / 403 账号已禁用，经 GlobalExceptionHandler 输出
+ * {code,data,message} 且 HTTP 状态码与业务码一致。
+ */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin
 public class LoginController {
     private final LoginService loginService;
     private final CurrentUserContext currentUserContext;
