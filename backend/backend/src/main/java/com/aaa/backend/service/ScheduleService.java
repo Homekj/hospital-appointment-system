@@ -15,5 +15,6 @@ public interface ScheduleService {
     Result update(ScheduleSaveDTO dto);
     Result batchAdd( ScheduleBatchDTO dto);
 
-
+    /** api.md 12.4 新增的 GET /api/admin/schedules/{id} 排班详情 */
+    Result detail(Long id);
 }
