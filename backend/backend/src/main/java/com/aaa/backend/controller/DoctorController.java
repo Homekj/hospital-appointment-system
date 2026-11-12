@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 旧 /admin/doctor/** 迁移兼容入口；新契约见 /api/admin/doctors（api.md 12.3）。 */
 @RestController
 @RequestMapping("/admin/doctor")
 public class DoctorController {

@@ -18,7 +18,8 @@ import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGe
         "com.aaa.backend.appointment.dao",
         "com.aaa.backend.notification.dao",
         "com.aaa.backend.wallet.dao",
-        "com.aaa.backend.prescription.dao"
+        "com.aaa.backend.prescription.dao",
+        "com.aaa.backend.doctor.dao"
 }, nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class)
 public class PatientMapperScanConfig {
 }

@@ -56,7 +56,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With")
+                // Idempotency-Key：api.md 13.9 完成接诊并开方可用该请求头防重复开方
+                .allowedHeaders("Authorization", "Content-Type", "Accept", "Origin",
+                        "X-Requested-With", "Idempotency-Key")
                 .exposedHeaders("Authorization", "Content-Disposition")
                 .allowCredentials(false)
                 .maxAge(3600);
