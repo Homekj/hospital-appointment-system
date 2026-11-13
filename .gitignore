@@ -1,21 +1,29 @@
+# ---- 依赖与构建产物 ----
 node_modules/
-miniprogram/node_modules/
 **/node_modules/
 **/dist/
 **/target/
+*.log
+
+# ---- 本地环境与密钥（示例文件除外）----
 .env
 .env.*
 !.env.example
+
+# ---- 后端运行时上传目录 ----
+/backend/uploads/
+
+# ---- 小程序本地配置 ----
 miniprogram/project.private.config.json
-codex-analysis/
-.workbuddy-ai/
+
+# ---- IDE 与操作系统 ----
 .idea/
 .vscode/
 *.iml
-*.log
 .DS_Store
 Thumbs.db
-/backend/backend/uploads/
 
-# Codex local workspace metadata
+# ---- 本地分析/工具目录 ----
+codex-analysis/
+.workbuddy-ai/
 .codex/

@@ -1,0 +1,176 @@
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #303846;
+  background: #f4f6fa;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 布局 ---------------- */
+.shell { height: 100vh; }
+
+.aside {
+  background: #fff;
+  border-right: 1px solid #e8ecf3;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 12px rgba(30, 60, 110, 0.03);
+}
+
+.brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2b7de9, #1d5fc7);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(43, 125, 233, 0.25);
+}
+
+.brand-title { font-size: 15px; font-weight: 700; color: #1f2937; letter-spacing: .3px; }
+.brand-sub { font-size: 10px; color: #a0aabf; letter-spacing: 1.5px; margin-top: 2px; }
+
+.side-menu { border-right: none !important; flex: 1; padding: 10px 8px; }
+.side-menu .el-menu-item { height: 44px; line-height: 44px; border-radius: 8px; margin-bottom: 4px; font-size: 14px; }
+.side-menu .el-menu-item i { margin-right: 8px; font-size: 16px; }
+.side-menu .el-menu-item.is-active { background: #eaf2ff !important; font-weight: 600; }
+.side-menu .el-menu-item:hover { background: #f3f7fd !important; }
+
+.aside-foot { padding: 14px 18px; font-size: 11px; color: #b4bdcc; border-top: 1px solid #eef1f6; }
+
+.header {
+  background: #fff;
+  border-bottom: 1px solid #e8ecf3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.header-left { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #8a93a6; }
+.header-left .el-icon-s-grid { color: #2b7de9; font-size: 17px; }
+.crumb-sep { color: #c9d0dc; }
+.crumb-current { color: #303846; font-weight: 600; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.user-name { font-size: 14px; color: #4b5563; }
+
+.main { padding: 20px 24px 32px; background: #f4f6fa; overflow-y: auto; }
+
+/* ---------------- 页面通用 ---------------- */
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.page-title { font-size: 20px; font-weight: 700; color: #1f2937; margin: 0 0 4px; }
+.page-desc { font-size: 13px; color: #8a93a6; margin: 0; }
+
+.panel {
+  background: #fff;
+  border: 1px solid #e9edf4;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 2px 10px rgba(31, 55, 99, 0.04);
+  margin-bottom: 16px;
+}
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; }
+.toolbar .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.toolbar .el-form-item { margin-bottom: 0; }
+.toolbar-actions { display: flex; gap: 8px; }
+
+.pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+.el-table th.el-table__cell { background: #f7f9fc !important; color: #5b6577; font-weight: 600; }
+.el-table .cell { line-height: 1.5; }
+.table-link { color: #2b7de9; cursor: pointer; }
+.danger-link { color: #f56c6c !important; }
+.muted { color: #9aa3b2; }
+.mono { font-family: Consolas, Monaco, monospace; }
+
+/* ---------------- 统计卡片 ---------------- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.stat-card {
+  background: #fff;
+  border: 1px solid #e9edf4;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 10px rgba(31, 55, 99, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: -18px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(43, 125, 233, 0.06);
+}
+.stat-label { font-size: 13px; color: #8a93a6; }
+.stat-value { font-size: 27px; font-weight: 700; color: #1f2937; margin-top: 8px; line-height: 1.2; }
+.stat-icon { position: absolute; right: 18px; bottom: 16px; font-size: 24px; color: #c7dcf9; }
+.stat-hint { font-size: 12px; color: #a6afbf; margin-top: 6px; }
+
+.chart-wrap { display: flex; align-items: flex-end; gap: 14px; height: 180px; padding: 10px 6px 0; }
+.chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.chart-bar {
+  width: 42%;
+  min-width: 22px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #4b91f0, #2b7de9);
+  transition: height .4s ease;
+}
+.chart-value { font-size: 12px; color: #5b6577; margin-bottom: 6px; }
+.chart-label { font-size: 12px; color: #9aa3b2; margin-top: 8px; }
+
+/* ---------------- 登录 ---------------- */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, #e8f1ff 0, transparent 45%),
+              radial-gradient(circle at 85% 80%, #dcecff 0, transparent 45%), #f5f8fd;
+}
+.login-card {
+  width: 400px;
+  background: #fff;
+  border: 1px solid #e6ecf6;
+  border-radius: 16px;
+  padding: 36px 34px 28px;
+  box-shadow: 0 18px 48px rgba(35, 76, 140, 0.12);
+}
+.login-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.login-logo .brand-logo { width: 42px; height: 42px; font-size: 20px; border-radius: 12px; }
+.login-title { font-size: 21px; font-weight: 700; color: #1f2937; }
+.login-sub { font-size: 12px; color: #9aa3b2; margin-top: 3px; letter-spacing: .5px; }
+.login-tip { font-size: 12px; color: #9aa3b2; text-align: center; margin-top: 14px; line-height: 1.7; }
+.login-btn { width: 100%; height: 42px; font-size: 15px; letter-spacing: 2px; }
+
+/* ---------------- 其它 ---------------- */
+.detail-list { font-size: 14px; line-height: 2; color: #4b5563; }
+.detail-list strong { color: #1f2937; display: inline-block; min-width: 92px; font-weight: 600; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.form-full { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+  .aside { width: 64px !important; }
+  .brand-text, .aside-foot, .side-menu .el-menu-item span { display: none; }
+  .side-menu .el-menu-item { text-align: center; }
+  .form-grid { grid-template-columns: 1fr; }
+}
