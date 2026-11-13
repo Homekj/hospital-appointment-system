@@ -238,7 +238,7 @@ public class DoctorWorkbenchService {
             }
 
             Map<Long, Medicine> medicineMap = new HashMap<>();
-            for (Medicine medicine : medicineDao.selectBatchIds(medicineIds)) {
+            for (Medicine medicine : medicineDao.selectByIds(medicineIds)) {
                 medicineMap.put(medicine.getId(), medicine);
             }
             for (PrescriptionItemRequest item : items) {

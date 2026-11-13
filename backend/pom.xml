@@ -42,7 +42,6 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
         <!-- MyBatis-Plus 分页插件依赖 (适用于 JDK 11+) -->
-        <!-- MyBatis-Plus 分页插件依赖 (适用于 JDK 11+) -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
@@ -183,7 +182,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <jvmTarget>1.8</jvmTarget>
+                    <jvmTarget>17</jvmTarget>
                     <compilerPlugins>
                         <plugin>spring</plugin>
                     </compilerPlugins>
@@ -224,20 +223,6 @@
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>
-                    </execution>
-                    <execution>
-                        <id>compile</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>testCompile</id>
-                        <phase>test-compile</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
                     </execution>
                 </executions>
             </plugin>
