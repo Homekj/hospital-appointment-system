@@ -132,6 +132,10 @@ public class LoginServiceimpl implements LoginService {
 
         if (miniProgramAppId == null || miniProgramAppId.isBlank()
                 || miniProgramSecret == null || miniProgramSecret.isBlank()) {
+            log.error("WeChat login configuration missing: appIdConfigured={}, secretConfigured={}, mockLoginEnabled={}",
+                    miniProgramAppId != null && !miniProgramAppId.isBlank(),
+                    miniProgramSecret != null && !miniProgramSecret.isBlank(),
+                    mockWxLoginEnabled);
             throw new BusinessException(BusinessErrorCode.INTERNAL_ERROR, "微信登录暂不可用");
         }
 

@@ -14,6 +14,7 @@ node_modules/
 
 # ---- 后端运行时上传目录 ----
 /backend/uploads/
+/uploads/
 
 # ---- 旧版嵌套后端副本（当前 Maven 源码统一位于 backend/src）----
 /backend/backend/

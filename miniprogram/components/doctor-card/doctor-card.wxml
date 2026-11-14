@@ -8,7 +8,10 @@
       height="96rpx"
       round
       fit="cover"
-    />
+      use-error-slot
+    >
+      <van-icon slot="error" name="manager" size="32px" color="#00B894" />
+    </van-image>
     <van-icon wx:else name="manager" size="32px" color="#00B894" />
   </view>
   <view class="doctor-card__body">

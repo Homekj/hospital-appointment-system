@@ -34,6 +34,9 @@ import java.util.Set;
 @Service
 public class AppointmentService {
 
+    /** The demo database has no doctor-specific registration fee field, so appointments use a fixed 20.00 fee. */
+    private static final BigDecimal REGISTRATION_FEE = new BigDecimal("20.00");
+
     private static final Set<String> ALLOWED_FILTER_STATUS = Set.of(
             "unpaid", "pending", "checked_in", "in_consultation",
             "pending_rx_pay", "pending_dispense", "completed", "cancelled");
@@ -47,10 +50,6 @@ public class AppointmentService {
     /** 是否强制「就诊当天才能签到」；联调时可在 application.properties 配 false 放宽。 */
     @Value("${patient.check-in.same-day-only:true}")
     private boolean sameDayCheckInOnly;
-
-    /** Local demo price can be reduced for mock-payment walkthroughs; keep the normal fee by default. */
-    @Value("${appointment.registration-fee:20.00}")
-    private BigDecimal registrationFee = new BigDecimal("20.00");
 
     public AppointmentService(AppointmentDao appointmentDao,
                               ScheduleDao scheduleDao,
@@ -133,7 +132,7 @@ public class AppointmentService {
         entity.setPatientPhone(request.patientPhone());
         entity.setIdCard(request.idCard());
         entity.setRemark(request.remark());
-        entity.setAmount(registrationFee.doubleValue());
+        entity.setAmount(REGISTRATION_FEE.doubleValue());
         entity.setStatus(AppointmentStatus.UNPAID.value());
         appointmentDao.insert(entity);
 

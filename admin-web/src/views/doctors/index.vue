@@ -30,6 +30,11 @@
     <div class="panel" v-loading="loading">
       <el-table :data="rows" border stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column label="头像" width="78" align="center">
+          <template slot-scope="{ row }">
+            <el-avatar :size="36" :src="resolveDoctorAvatar(row.avatar)">{{ (row.name || '医').slice(0, 1) }}</el-avatar>
+          </template>
+        </el-table-column>
         <el-table-column prop="name" label="姓名" width="110" />
         <el-table-column prop="departmentName" label="科室" min-width="110" />
         <el-table-column prop="title" label="职称" min-width="120" />
@@ -98,7 +103,19 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item label="头像路径" prop="avatar">
-            <el-input v-model="form.avatar" maxlength="255" placeholder="/uploads/common/doctor_m_1.jpg" />
+            <div class="doctor-avatar-editor">
+              <el-avatar :size="56" :src="resolveDoctorAvatar(form.avatar)">{{ (form.name || '医').slice(0, 1) }}</el-avatar>
+              <el-upload
+                action="#"
+                accept="image/jpeg,image/png,image/webp"
+                :show-file-list="false"
+                :before-upload="beforeUploadDoctorAvatar"
+                :http-request="uploadDoctorAvatar"
+              >
+                <el-button size="small" icon="el-icon-upload2" :loading="avatarUploading">上传医生头像</el-button>
+              </el-upload>
+            </div>
+            <el-input v-model="form.avatar" maxlength="255" placeholder="上传后自动填写，也可手动填写现有图片路径" />
           </el-form-item>
           <el-form-item label="医生简介" prop="intro" class="form-full">
             <el-input v-model="form.intro" type="textarea" :rows="3" maxlength="1000" placeholder="擅长领域" />
@@ -125,6 +142,7 @@
 <script>
 import listPage from '@/mixins/listPage'
 import { doctorApi, catalogApi } from '@/api/admin'
+import request from '@/utils/request'
 
 export default {
   name: 'DoctorsPage',
@@ -132,6 +150,7 @@ export default {
   data() {
     return {
       departmentOptions: [],
+      avatarUploading: false,
       accountVisible: false,
       createdAccount: {},
       rules: {
@@ -141,6 +160,38 @@ export default {
     }
   },
   methods: {
+    resolveDoctorAvatar(path) {
+      if (!path) return ''
+      if (/^https?:\/\//i.test(path)) return path
+      return `${(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')}${path}`
+    },
+    beforeUploadDoctorAvatar(file) {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp']
+      if (!allowed.includes(file.type)) {
+        this.$message.error('仅支持 jpg、png、webp 图片')
+        return false
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        this.$message.error('头像不能超过 5MB')
+        return false
+      }
+      return true
+    },
+    uploadDoctorAvatar(options) {
+      const formData = new FormData()
+      formData.append('file', options.file)
+      formData.append('category', 'avatar')
+      this.avatarUploading = true
+      request.post('/files/upload', formData)
+        .then(result => {
+          const path = (result && result.path) || (result && result.url) || ''
+          if (!path) throw new Error('上传响应缺少文件路径')
+          this.form.avatar = path
+          this.$message.success('头像已上传，保存医生信息后生效')
+        })
+        .catch(() => {})
+        .finally(() => { this.avatarUploading = false })
+    },
     defaultQuery() { return { keyword: '', departmentId: '', status: '' } },
     defaultForm() {
       return { departmentId: '', name: '', title: '', gender: 1, avatar: '', intro: '', status: 1 }
@@ -170,3 +221,12 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.doctor-avatar-editor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+</style>

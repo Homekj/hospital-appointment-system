@@ -85,5 +85,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // authenticated download endpoint with an authorization check or a time-limited URL.
         registry.addResourceHandler(FileStorageService.PUBLIC_AVATAR_PATH + "**")
                 .addResourceLocations(location);
+
+        Path commonAvatarRoot = Paths.get(uploadDir).toAbsolutePath().normalize().resolve("common");
+        String commonAvatarLocation = commonAvatarRoot.toUri().toString();
+        if (!commonAvatarLocation.endsWith("/")) {
+            commonAvatarLocation += "/";
+        }
+        registry.addResourceHandler("/uploads/common/**")
+                .addResourceLocations(commonAvatarLocation);
     }
 }
