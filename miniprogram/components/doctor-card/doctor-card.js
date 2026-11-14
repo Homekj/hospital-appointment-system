@@ -19,7 +19,7 @@ Component({
   data: { deptName: '' },
   methods: {
     onTap() {
-      this.triggerEvent('tap', { id: this.data.doctor.id })
+      this.triggerEvent('doctorselect', { id: this.data.doctor.id })
     }
   }
 })

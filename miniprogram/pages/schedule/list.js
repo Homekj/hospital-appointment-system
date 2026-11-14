@@ -160,7 +160,8 @@ Page({
   },
 
   onDoctorTap(e) {
-    const { id } = e.detail
+    const id = Number(e.detail && e.detail.id)
+    if (!Number.isInteger(id) || id <= 0) return
     wx.navigateTo({ url: `/pages/schedule/detail?doctorId=${id}` })
   }
 })

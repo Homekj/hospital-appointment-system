@@ -1,21 +1,46 @@
+# ---- 依赖与构建产物 ----
 node_modules/
-miniprogram/node_modules/
 **/node_modules/
 **/dist/
 **/target/
+*.log
+*.class
+*.dumpstream
+
+# ---- 本地环境与密钥（示例文件除外）----
 .env
 .env.*
 !.env.example
+
+# ---- 后端运行时上传目录 ----
+/backend/uploads/
+
+# ---- 旧版嵌套后端副本（当前 Maven 源码统一位于 backend/src）----
+/backend/backend/
+
+# ---- 小程序本地配置 ----
 miniprogram/project.private.config.json
-codex-analysis/
-.workbuddy-ai/
+
+# ---- IDE 与操作系统 ----
 .idea/
 .vscode/
 *.iml
-*.log
 .DS_Store
 Thumbs.db
-/backend/backend/uploads/
 
-# Codex local workspace metadata
+# ---- 本地分析/工具目录 ----
+codex-analysis/
+.workbuddy/
+.workbuddy-ai/
 .codex/
+
+# ---- 本地参考项目与协作产物 ----
+/other/qy150-weixin-pay/
+/task_plan.md
+/findings.md
+/progress.md
+/~$*.docx
+
+# ---- 本地交付文档（课程报告与演示文稿，不入库）----
+/医院预约挂号管理系统项目报告.docx
+/项目演示文稿/

@@ -137,6 +137,46 @@
   border-color: var(--color-primary) !important;
 }
 
+.mine__web-login {
+  margin: 20rpx 0;
+  padding: 28rpx 32rpx;
+}
+
+.mine__web-login-title {
+  display: block;
+  margin-bottom: 16rpx;
+  font-size: var(--font-subtitle);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.mine__web-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  color: var(--color-text-secondary);
+  font-size: var(--font-caption);
+  word-break: break-all;
+}
+
+.mine__copy {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.mine__web-password {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 16rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-body);
+}
+
 .mine__menu {
   padding: 8rpx 32rpx;
 }

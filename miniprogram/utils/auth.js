@@ -91,7 +91,7 @@ function wxLogin(options = {}) {
               .then((user) => {
                 resolve({ token: getToken(), user })
               })
-              .catch(reject)
+              .catch(() => resolve({ ...data, profileSyncFailed: true }))
             return
           }
           resolve(data)
@@ -101,6 +101,14 @@ function wxLogin(options = {}) {
         reject(new Error(err.errMsg || 'wx.login 失败'))
       }
     })
+  })
+}
+
+function setWebPassword(password) {
+  return request({
+    url: '/api/profile/password',
+    method: 'PUT',
+    data: { password }
   })
 }
 
@@ -213,6 +221,7 @@ module.exports = {
   wxLogin,
   fetchMe,
   updateProfile,
+  setWebPassword,
   syncWxProfile,
   logout,
   sessionExpired

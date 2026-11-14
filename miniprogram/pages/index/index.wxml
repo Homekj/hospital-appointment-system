@@ -21,7 +21,7 @@
             wx:for="{{ doctors }}"
             wx:key="id"
             doctor="{{ item }}"
-            bind:tap="onDoctorTap"
+            bind:doctorselect="onDoctorTap"
           />
         </view>
       </view>

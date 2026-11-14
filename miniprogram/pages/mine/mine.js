@@ -13,6 +13,8 @@ Page({
     wxNickname: '',
     wxAvatarPath: '',
     wxLoginLoading: false,
+    webPassword: '',
+    passwordSaving: false,
     profileSyncing: false,
     unreadCount: 0,
     menuItems: [
@@ -99,13 +101,44 @@ Page({
       nickname,
       avatarPath: this.data.wxAvatarPath || ''
     })
-      .then(() => {
+      .then((result) => {
         this.setData({ wxAvatarPath: '' })
         this.syncUser()
-        toast.success('登录成功')
+        if (result && result.profileSyncFailed) {
+          toast('登录成功，昵称或头像稍后可在个人资料中更新')
+        } else {
+          toast.success('登录成功')
+        }
       })
       .catch((err) => toast(err.message || '微信登录失败'))
       .finally(() => this.setData({ wxLoginLoading: false }))
+  },
+
+  onWebPasswordInput(e) {
+    this.setData({ webPassword: e.detail.value || '' })
+  },
+
+  setWebPassword() {
+    const password = this.data.webPassword
+    if (password.length < 8 || password.length > 72) {
+      toast('密码长度须为 8 到 72 个字符')
+      return
+    }
+    if (this.data.passwordSaving) return
+    this.setData({ passwordSaving: true })
+    auth.setWebPassword(password)
+      .then(() => {
+        this.setData({ webPassword: '' })
+        toast.success('网页登录密码已设置')
+      })
+      .catch((err) => toast(err.message || '设置密码失败'))
+      .finally(() => this.setData({ passwordSaving: false }))
+  },
+
+  copyWebUsername() {
+    const username = this.data.user && this.data.user.username
+    if (!username) return
+    wx.setClipboardData({ data: username, success: () => toast.success('账号已复制') })
   },
 
   onLogout() {

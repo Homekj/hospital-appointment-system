@@ -46,7 +46,7 @@ function request(options) {
       fail(err) {
         const msg = err.errMsg || '网络错误'
         if (msg.indexOf('url not in domain list') !== -1) {
-          reject(new Error('域名未配置：开发阶段请勾选不校验合法域名'))
+          reject(new Error('请求地址未通过校验：请检查同网局域网或配置 HTTPS 域名'))
           return
         }
         if (msg.indexOf('connect') !== -1 || msg.indexOf('timeout') !== -1 || msg.indexOf('fail') !== -1) {

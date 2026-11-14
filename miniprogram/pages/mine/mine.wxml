@@ -52,6 +52,29 @@
     >微信一键登录</van-button>
   </view>
 
+  <view wx:if="{{ loggedIn }}" class="card mine__web-login">
+    <text class="mine__web-login-title">网页端登录</text>
+    <view class="mine__web-account" bindtap="copyWebUsername">
+      <text>账号：{{ user.username }}</text>
+      <text class="mine__copy">点击复制</text>
+    </view>
+    <input
+      class="mine__web-password"
+      password
+      maxlength="72"
+      value="{{ webPassword }}"
+      placeholder="设置 8 至 72 位登录密码"
+      bind:input="onWebPasswordInput"
+    />
+    <van-button
+      type="primary"
+      size="small"
+      block
+      loading="{{ passwordSaving }}"
+      bind:click="setWebPassword"
+    >设置网页登录密码</van-button>
+  </view>
+
   <view class="card mine__menu">
     <view
       wx:for="{{ menuItems }}"

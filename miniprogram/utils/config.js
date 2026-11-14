@@ -1,4 +1,4 @@
-// 开发：微信开发者工具勾选「不校验合法域名」；真机调试改为局域网 IP
-const baseUrl = 'http://localhost:9090'
+// 手机连接笔记本热点时，访问热点网卡地址；普通手机预览仍可能要求 HTTPS 合法域名。
+const baseUrl = 'http://192.168.137.1:9090'
 
 module.exports = { baseUrl }

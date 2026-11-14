@@ -22,7 +22,7 @@
             wx:key="id"
             doctor="{{ item }}"
             show-dept="{{ isGlobalSearch }}"
-            bind:tap="onDoctorTap"
+            bind:doctorselect="onDoctorTap"
           />
         </view>
         <empty-state wx:else description="{{ keyword ? '未找到相关医生' : '暂无医生排班' }}" />

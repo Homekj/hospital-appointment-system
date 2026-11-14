@@ -2,7 +2,7 @@
 
 > 版本：`1.0`
 >
-> 更新时间：`2026-11-09`
+> 更新时间：`2026-11-13`
 >
 > 适用仓库：[StreamH/Hospital-Appointment-Management](https://gitee.com/StreamH/Hospital-Appointment-Management)（Gitee）
 >
@@ -35,7 +35,7 @@
 | MySQL | `localhost:3306/hospital_booking` |
 | Redis | `localhost:6379` |
 
-微信开发者工具开发时勾选“不校验合法域名”。真机调试时，将小程序 `utils/config.js` 中的 `baseUrl` 改为电脑局域网 IP，并确保手机与电脑在同一网络。
+微信开发者工具本地联调可勾选“不校验合法域名”，并使用本机可达的后端地址。若 `baseUrl` 使用电脑局域网 IP，手机须连接电脑所在的同一网络；蜂窝网络无法访问该地址。手机普通预览不会继承开发者工具的本地不校验选项；稳定预览和体验版应使用可访问的 HTTPS 域名，在微信公众平台「开发管理 → 开发设置 → 服务器域名」配置 `request 合法域名`，头像上传还需配置 `uploadFile 合法域名`。开发阶段可在同一局域网使用「真机调试」验证。
 
 前端不得写死数据库密码、JWT 密钥、微信 `AppSecret`、真实令牌或其他敏感信息。
 
@@ -432,6 +432,26 @@ unpaid --管理员取消--> cancelled
 | `phone` | string | 否 | 最大 20 字符 |
 
 成功响应 `data` 为更新后的用户对象。
+
+微信小程序首次登录生成的患者账号默认没有可供用户记忆的密码。患者可在小程序“我的”页查看并复制当前登录账号，再调用下列接口设置网页端密码；网页端仍使用 `POST /api/auth/login` 登录同一患者账号。
+
+### 6.5.1 设置网页登录密码
+
+`PUT /api/profile/password`
+
+权限：已登录的 `USER` 患者。管理员和医生调用时返回 `403`。
+
+请求：
+
+```json
+{
+  "password": "至少八位的网页登录密码"
+}
+```
+
+密码长度为 8 到 72 个字符，UTF-8 编码后最多 72 字节。服务端使用 BCrypt 保存密码；接口不返回密码或密码哈希。成功响应的 `data` 为 `null`。
+
+该接口使用当前有效的微信小程序登录令牌授权设置密码。设置完成后，小程序和 Web 共用 `sys_user` 中的账号；Web 端不会因此获得微信扫码授权能力。
 
 ### 6.6 绑定头像
 
@@ -1177,6 +1197,8 @@ WHERE id = ?
 }
 ```
 
+统计口径：`todayAppointments` 和 `last7Days[].appointmentCount` 按预约创建时间统计；`todayRevenue` 和趋势收入按支付时间统计，排除已取消预约。医生、科室数量仅统计启用记录，用户数量排除逻辑删除账号。
+
 ### 12.2 科室管理
 
 | 方法 | 路径 | 说明 |
@@ -1308,12 +1330,12 @@ WHERE id = ?
 - 发药成功将处方改为 `dispensed`。
 - 同一事务内将关联预约改为 `completed`。
 - 可扣减 `medicine.stock`，库存不足时拒绝发药并返回 `409`。
-- 重复发药必须幂等，不得重复扣库存。
+- 重复发药必须幂等，不得重复扣库存；已停用药品仍可按已支付处方发药，但库存必须充足。
 
 取消处方规则：
 
 - 仅 `unpaid` 可取消。
-- 取消后若预约只有该处方且尚未完成，管理员需明确结束或保留预约后续处理。
+- 该取消接口表示管理员明确结束处方处理阶段：未支付处方取消后，处于 `pending_rx_pay` 的已完成就诊预约转为 `completed`，不释放已使用的挂号号源。
 
 ### 12.7 药品管理
 
@@ -1384,6 +1406,8 @@ WHERE id = ?
   "roles": "ADMIN"
 }
 ```
+
+登录日志记录账号密码登录和微信登录的成功、失败结果，不保存密码、JWT 或微信登录凭证。操作日志记录管理端写请求的操作者、模块、动作、HTTP 方法、路径、来源 IP、耗时与结果，不保存请求体。
 
 ## 13. 医生工作台接口
 
@@ -1806,6 +1830,7 @@ Redis 不可作为号源是否售出的唯一依据。Redis 不可用时，登�
 | `wxLogin` | `POST /api/auth/wx-login` |
 | `fetchMe` | `GET /api/auth/me` |
 | `updateProfile` | `PUT /api/profile` |
+| `setWebPassword` | `PUT /api/profile/password` |
 | `uploadAvatarFile` | `POST /api/files/upload` |
 | `bindAvatar` | `PUT /api/profile/avatar` |
 | `walletApi.recharge` | `POST /api/wallet/recharge` |
