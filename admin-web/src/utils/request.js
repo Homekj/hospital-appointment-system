@@ -15,6 +15,15 @@ const service = axios.create({
 
 service.interceptors.request.use(
   config => {
+    // The shared Axios instance defaults to JSON. Let the browser set the multipart boundary for FormData.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type')
+      } else {
+        delete config.headers['Content-Type']
+        delete config.headers['content-type']
+      }
+    }
     const token = getToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
