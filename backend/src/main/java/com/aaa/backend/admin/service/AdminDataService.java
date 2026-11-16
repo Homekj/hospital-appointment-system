@@ -1,6 +1,7 @@
 package com.aaa.backend.admin.service;
 
 import com.aaa.backend.admin.dto.MedicineSaveRequest;
+import com.aaa.backend.auth.CurrentUserContext;
 import com.aaa.backend.common.BusinessErrorCode;
 import com.aaa.backend.common.BusinessException;
 import com.aaa.backend.common.PageResult;
@@ -46,9 +47,11 @@ public class AdminDataService {
             + "DATE_FORMAT(update_time, '%Y-%m-%d %H:%i:%s') AS updateTime";
 
     private final JdbcTemplate jdbc;
+    private final CurrentUserContext currentUserContext;
 
-    public AdminDataService(JdbcTemplate jdbc) {
+    public AdminDataService(JdbcTemplate jdbc, CurrentUserContext currentUserContext) {
         this.jdbc = jdbc;
+        this.currentUserContext = currentUserContext;
     }
 
     // ------------------------------------------------------------------
@@ -224,6 +227,9 @@ public class AdminDataService {
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> userStatus(Long id, Integer status) {
         requireStatus(status);
+        if (currentUserContext.requireUserId().equals(id) && Integer.valueOf(0).equals(status)) {
+            throw new BusinessException(BusinessErrorCode.CONFLICT, "不能禁用当前登录的管理员账号");
+        }
         userDetail(id);
         jdbc.update("UPDATE sys_user SET status = ? WHERE id = ? AND deleted = 0", status, id);
         return userDetail(id);
