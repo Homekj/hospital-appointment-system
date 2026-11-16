@@ -30,6 +30,13 @@ Page({
   onShow() {
     setTabBar(this, '/pages/mine/mine')
     this.syncUser()
+    if (auth.isLoggedIn()) {
+      // Balance may have changed in the web client or on another mini-program page.
+      // Refresh the cached user whenever this tab is shown.
+      auth.fetchMe()
+        .then(() => this.syncUser())
+        .catch(() => this.syncUser())
+    }
     this.loadUnread()
   },
 
