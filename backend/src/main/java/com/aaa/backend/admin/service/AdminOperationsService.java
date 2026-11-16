@@ -234,10 +234,10 @@ public class AdminOperationsService {
     @Transactional(rollbackFor = Exception.class)
     public AdminUserVO changeUserStatus(Long id, int status) {
         validateStatus(status);
-        if (id.equals(currentUserContext.requireUserId()) && status == 0) {
-            throw new BusinessException(BusinessErrorCode.CONFLICT, "不能禁用当前登录的管理员账号");
-        }
         AdminUserVO user = userDetail(id);
+        if (status == 0 && "ADMIN".equalsIgnoreCase(user.role())) {
+            throw new BusinessException(BusinessErrorCode.CONFLICT, "管理员账号不允许禁用");
+        }
         if (user.status() == status) return user;
         if (dataDao.updateUserStatus(id, status) == 0) {
             throw new BusinessException(BusinessErrorCode.NOT_FOUND, "用户不存在");

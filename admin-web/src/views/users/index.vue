@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">用户管理</h2>
-        <p class="page-desc">对接 /api/admin/users，管理员可查看账号并启停用；密码与 openid 不下发前端</p>
+        <p class="page-desc">管理员可查看用户账号并启停用；管理员账号不可禁用，密码与 openid 不下发前端</p>
       </div>
     </div>
 
@@ -53,9 +53,10 @@
         <el-table-column label="操作" width="160" :fixed="$root.isMobile ? false : 'right'">
           <template slot-scope="{ row }">
             <el-button type="text" icon="el-icon-view" @click="showDetail(row)">详情</el-button>
-            <el-button type="text" :icon="row.status === 1 ? 'el-icon-turn-off' : 'el-icon-open'" @click="toggle(row)">
+            <el-button v-if="row.role !== 'ADMIN' || row.status !== 1" type="text" :icon="row.status === 1 ? 'el-icon-turn-off' : 'el-icon-open'" @click="toggle(row)">
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
+            <span v-else class="muted">管理员不可禁用</span>
           </template>
         </el-table-column>
         <template slot="empty">暂无用户数据</template>
