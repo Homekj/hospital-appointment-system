@@ -8,6 +8,7 @@ import com.aaa.backend.entity.SysUser;
 import com.aaa.backend.file.FileStorageService;
 import com.aaa.backend.profile.dto.ProfileUpdateRequest;
 import com.aaa.backend.profile.dto.PasswordUpdateRequest;
+import com.aaa.backend.profile.dto.PasswordChangeRequest;
 import com.aaa.backend.service.LoginService;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -109,6 +110,34 @@ public class ProfileServiceImpl implements ProfileService {
         if (userDao.update(null, update) != 1) {
             throw new BusinessException(BusinessErrorCode.UNAUTHORIZED,
                     "用户不存在或账号不可用");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(LoginUser currentUser, PasswordChangeRequest request) {
+        if (!"USER".equals(currentUser.role())) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN, "仅患者账号可在患者中心修改密码");
+        }
+        if (request.newPassword().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BusinessException(BusinessErrorCode.BAD_REQUEST, "新密码最多支持 72 个 UTF-8 字节");
+        }
+        SysUser user = userDao.selectById(currentUser.id());
+        if (user == null || !Integer.valueOf(0).equals(user.getDeleted())
+                || !Integer.valueOf(1).equals(user.getStatus()) || !"USER".equals(user.getRole())) {
+            throw new BusinessException(BusinessErrorCode.UNAUTHORIZED, "用户不存在或账号不可用");
+        }
+        if (user.getPassword() == null || !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new BusinessException(BusinessErrorCode.BAD_REQUEST, "当前密码不正确");
+        }
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new BusinessException(BusinessErrorCode.BAD_REQUEST, "新密码不能与当前密码相同");
+        }
+        UpdateWrapper<SysUser> update = new UpdateWrapper<>();
+        update.eq("id", currentUser.id()).eq("deleted", 0).eq("status", 1).eq("role", "USER")
+                .set("password", passwordEncoder.encode(request.newPassword()));
+        if (userDao.update(null, update) != 1) {
+            throw new BusinessException(BusinessErrorCode.UNAUTHORIZED, "用户不存在或账号不可用");
         }
     }
 

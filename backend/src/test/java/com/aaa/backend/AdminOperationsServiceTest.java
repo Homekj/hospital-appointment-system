@@ -43,9 +43,10 @@ class AdminOperationsServiceTest {
         PrescriptionDetailVO paid = prescription(18L, 91L, "paid");
         PrescriptionDetailVO dispensed = prescription(18L, 91L, "dispensed");
         PrescriptionItemVO item = item(33L, 2);
-        when(prescriptionDao.lockStatusForUpdate(18L)).thenReturn("paid");
-        when(prescriptionDao.selectDetail(18L)).thenReturn(paid, dispensed);
+        when(prescriptionDao.lockForUpdate(18L)).thenReturn(18L);
+        when(prescriptionDao.selectDetail(18L)).thenReturn(paid, paid, dispensed);
         when(prescriptionItemDao.selectByPrescription(18L)).thenReturn(List.of(item));
+        when(medicineDao.lockStockForUpdate(33L)).thenReturn(5);
         when(medicineDao.deductStock(33L, 2)).thenReturn(1);
         when(prescriptionDao.markDispensed(18L)).thenReturn(1);
 
@@ -58,9 +59,11 @@ class AdminOperationsServiceTest {
 
     @Test
     void insufficientStockDoesNotChangePrescriptionOrAppointment() {
-        when(prescriptionDao.selectDetail(18L)).thenReturn(prescription(18L, 91L, "paid"));
-        when(prescriptionDao.lockStatusForUpdate(18L)).thenReturn("paid");
+        PrescriptionDetailVO paid = prescription(18L, 91L, "paid");
+        when(prescriptionDao.selectDetail(18L)).thenReturn(paid, paid);
+        when(prescriptionDao.lockForUpdate(18L)).thenReturn(18L);
         when(prescriptionItemDao.selectByPrescription(18L)).thenReturn(List.of(item(33L, 2)));
+        when(medicineDao.lockStockForUpdate(33L)).thenReturn(1);
         when(medicineDao.deductStock(33L, 2)).thenReturn(0);
 
         assertThrows(BusinessException.class, () -> service.dispense(18L));
@@ -73,7 +76,7 @@ class AdminOperationsServiceTest {
     void cancellingUnpaidPrescriptionCompletesPrescriptionStageThroughContract() {
         PrescriptionDetailVO unpaid = prescription(18L, 91L, "unpaid");
         PrescriptionDetailVO cancelled = prescription(18L, 91L, "cancelled");
-        when(prescriptionDao.lockStatusForUpdate(18L)).thenReturn("unpaid");
+        when(prescriptionDao.lockForUpdate(18L)).thenReturn(18L);
         when(prescriptionDao.selectDetail(18L)).thenReturn(unpaid, cancelled);
         when(prescriptionDao.cancelUnpaid(18L)).thenReturn(1);
         when(prescriptionItemDao.selectByPrescription(18L)).thenReturn(List.of());

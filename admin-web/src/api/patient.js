@@ -25,6 +25,7 @@ export const patientApi = {
   prescriptionByAppointment: id => request.get(`/appointments/${id}/prescription`),
   prescription: id => request.get(`/prescriptions/${id}`),
   payPrescription: (id, payMethod) => request.post(`/prescriptions/${id}/pay`, { payMethod }),
+  pickupPrescription: id => request.put(`/prescriptions/${id}/pickup`),
 
   // 消息
   notifications: params => request.get('/notifications', { params }),
@@ -38,5 +39,6 @@ export const patientApi = {
 
   // 个人资料
   updateProfile: data => request.put('/profile', data),
-  updateAvatar: path => request.put('/profile/avatar', { path })
+  updateAvatar: path => request.put('/profile/avatar', { path }),
+  changePassword: data => request.put('/profile/password/change', data)
 }

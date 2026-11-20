@@ -2,12 +2,16 @@ package com.aaa.backend.doctor.controller;
 
 import com.aaa.backend.appointment.vo.ConsultationVO;
 import com.aaa.backend.auth.CurrentUserContext;
+import com.aaa.backend.auth.dto.LoginUser;
+import com.aaa.backend.profile.dto.AvatarUpdateRequest;
 import com.aaa.backend.common.ApiResponse;
 import com.aaa.backend.common.PageResult;
 import com.aaa.backend.contract.appointment.AppointmentPageQuery;
 import com.aaa.backend.contract.appointment.AppointmentSummary;
 import com.aaa.backend.doctor.dto.CompleteConsultationRequest;
 import com.aaa.backend.doctor.dto.ConsultationSaveRequest;
+import com.aaa.backend.doctor.dto.DoctorPasswordUpdateRequest;
+import com.aaa.backend.doctor.service.DoctorAccountService;
 import com.aaa.backend.doctor.service.DoctorWorkbenchService;
 import com.aaa.backend.doctor.vo.CompleteConsultationVO;
 import com.aaa.backend.doctor.vo.DoctorAppointmentDetailVO;
@@ -47,11 +51,14 @@ import java.util.List;
 public class DoctorWorkbenchController {
 
     private final DoctorWorkbenchService service;
+    private final DoctorAccountService accountService;
     private final CurrentUserContext currentUserContext;
 
     public DoctorWorkbenchController(DoctorWorkbenchService service,
+                                     DoctorAccountService accountService,
                                      CurrentUserContext currentUserContext) {
         this.service = service;
+        this.accountService = accountService;
         this.currentUserContext = currentUserContext;
     }
 
@@ -59,6 +66,18 @@ public class DoctorWorkbenchController {
     @GetMapping("/me")
     public ApiResponse<DoctorProfileVO> me() {
         return ApiResponse.success(service.profile(currentUserContext.requireDoctorId()));
+    }
+
+    @PutMapping("/password")
+    public ApiResponse<Void> updatePassword(@Valid @RequestBody DoctorPasswordUpdateRequest request) {
+        accountService.updatePassword(currentUserContext.requireUserId(), request);
+        return ApiResponse.success();
+    }
+
+    @PutMapping("/avatar")
+    public ApiResponse<LoginUser> updateAvatar(@Valid @RequestBody AvatarUpdateRequest request) {
+        return ApiResponse.success(accountService.updateAvatar(currentUserContext.requireUserId(),
+                currentUserContext.requireDoctorId(), request.path()));
     }
 
     /** api.md 13.2 工作台统计：只返回文档规定的四个计数 */

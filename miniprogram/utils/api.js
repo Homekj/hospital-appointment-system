@@ -67,6 +67,10 @@ function payPrescription(id, payMethod) {
   return request({ url: `/api/prescriptions/${id}/pay`, method: 'POST', data: { payMethod } })
 }
 
+function pickupPrescription(id) {
+  return request({ url: `/api/prescriptions/${id}/pickup`, method: 'PUT' })
+}
+
 function submitAppointmentReview(id, data) {
   return request({ url: `/api/appointments/${id}/review`, method: 'POST', data })
 }
@@ -104,6 +108,7 @@ module.exports = {
   getPrescriptionByAppointment,
   getPrescription,
   payPrescription,
+  pickupPrescription,
   getNotifications,
   getUnreadNotificationCount,
   markNotificationRead,

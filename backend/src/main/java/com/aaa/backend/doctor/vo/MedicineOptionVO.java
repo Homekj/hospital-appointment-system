@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
-/** api.md 13.10 医生开方可选药品：只返回启用且有库存的药品。 */
+/** 医生开方可选药品；stock 是扣除未取处方占用后的可开数量。 */
 @Data
 public class MedicineOptionVO {
     private Long id;

@@ -24,6 +24,9 @@ public interface PrescriptionDao extends BaseMapper<Prescription> {
     @Select(DETAIL_COLUMNS + " WHERE p.id = #{id} AND p.user_id = #{userId} ")
     PrescriptionDetailVO selectOwned(@Param("id") Long id, @Param("userId") Long userId);
 
+    @Select(DETAIL_COLUMNS + " WHERE p.id = #{id} AND p.user_id = #{userId} FOR UPDATE")
+    PrescriptionDetailVO lockOwnedForUpdate(@Param("id") Long id, @Param("userId") Long userId);
+
     /** 一个预约最多一张处方（uk_prescription_appt），所以直接返回单条。 */
     @Select(DETAIL_COLUMNS + " WHERE p.appointment_id = #{appointmentId} AND p.user_id = #{userId} ")
     PrescriptionDetailVO selectByAppointment(@Param("appointmentId") Long appointmentId,
@@ -40,4 +43,7 @@ public interface PrescriptionDao extends BaseMapper<Prescription> {
     int markPaid(@Param("id") Long id,
                  @Param("userId") Long userId,
                  @Param("payMethod") String payMethod);
+
+    @Update("UPDATE prescription SET status = 'dispensed' WHERE id = #{id} AND user_id = #{userId} AND status = 'paid'")
+    int markDispensed(@Param("id") Long id, @Param("userId") Long userId);
 }

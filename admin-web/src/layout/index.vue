@@ -85,7 +85,8 @@ const MENUS = {
     { name: '我的排班', path: '/doctor/schedules', icon: 'el-icon-date' },
     { name: '就诊列表', path: '/doctor/appointments', icon: 'el-icon-tickets' },
     { name: '接诊工作台', path: '/doctor/consultation', icon: 'el-icon-edit-outline' },
-    { name: '药品目录', path: '/doctor/medicines', icon: 'el-icon-first-aid-kit' }
+    { name: '药品目录', path: '/doctor/medicines', icon: 'el-icon-first-aid-kit' },
+    { name: '个人资料', path: '/doctor/profile', icon: 'el-icon-user' }
   ],
   USER: [
     { name: '我的首页', path: '/patient/home', icon: 'el-icon-s-home' },

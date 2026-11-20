@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">病历与处方</h2>
-        <p class="page-desc">查看就诊病历、处方明细，并对未缴药费的处方完成支付</p>
+        <p class="page-desc">查看就诊病历、处方明细，并完成处方支付与取药</p>
       </div>
     </div>
 
@@ -54,8 +54,8 @@
           <div class="panel">
             <div class="page-head" style="margin-bottom:12px">
               <div><h3 style="margin:0;font-size:16px">处方明细</h3><p class="page-desc">金额为服务端按药品单价计算</p></div>
-              <el-tag v-if="prescription" effect="plain" :type="prescription.status === 'unpaid' ? 'warning' : 'success'">
-                {{ prescription.status === 'unpaid' ? '待支付' : prescription.status }}
+              <el-tag v-if="prescription" effect="plain" :type="prescriptionTagType(prescription.status)">
+                {{ prescriptionStatusText(prescription.status) }}
               </el-tag>
             </div>
             <template v-if="prescription">
@@ -81,9 +81,13 @@
                   </el-select>
                   <el-button type="primary" size="small" :loading="paying" style="margin-left:8px" @click="pay">支付药费</el-button>
                 </div>
-                <span v-else class="muted">{{ prescription.payMethodText || '已支付' }}</span>
+                <div v-else-if="prescription.status === 'paid'">
+                  <span class="muted">{{ prescription.payMethodText || '已支付' }}</span>
+                  <el-button type="success" size="small" :loading="pickingUp" style="margin-left:10px" @click="pickup">确认已取药</el-button>
+                </div>
+                <span v-else class="muted">{{ prescription.payMethodText || prescriptionStatusText(prescription.status) }}</span>
               </div>
-              <p class="muted" style="font-size:12px;margin-top:10px">支付处方不会改变预约状态，预约仍保持「待缴药费」直至发药完成。</p>
+              <p class="muted" style="font-size:12px;margin-top:10px">确认取药后，处方会标记为已取药，预约状态同步更新为已完成。</p>
             </template>
             <el-empty v-else description="本次就诊未开具处方" :image-size="70" />
           </div>
@@ -110,6 +114,7 @@ export default {
       prescription: null,
       loading: false,
       paying: false,
+      pickingUp: false,
       payMethod: 'wechat'
     }
   },
@@ -124,6 +129,12 @@ export default {
   methods: {
     statusText, statusTagType,
     formatDay: formatDate,
+    prescriptionStatusText(status) {
+      return ({ unpaid: '待支付', paid: '待取药', dispensed: '已取药', cancelled: '已取消' })[status] || status || '-'
+    },
+    prescriptionTagType(status) {
+      return ({ unpaid: 'warning', paid: 'primary', dispensed: 'success', cancelled: 'info' })[status] || 'info'
+    },
     loadCandidates() {
       Promise.all([
         patientApi.appointments({ current: 1, size: 30, status: 'completed' }),
@@ -168,6 +179,21 @@ export default {
         .then(() => { this.$message.success('药费支付成功'); this.load() })
         .catch(() => {})
         .finally(() => { this.paying = false })
+    },
+    pickup() {
+      if (!this.prescription || this.prescription.status !== 'paid') return
+      this.$confirm('确认已经从药房领取处方中的药品？确认后本次就诊将标记为已完成。', '确认取药', { type: 'warning' })
+        .then(() => {
+          this.pickingUp = true
+          return patientApi.pickupPrescription(this.prescription.id)
+        })
+        .then(() => {
+          this.$message.success('取药已确认，就诊已完成')
+          this.load()
+          this.loadCandidates()
+        })
+        .catch(() => {})
+        .finally(() => { this.pickingUp = false })
     }
   }
 }

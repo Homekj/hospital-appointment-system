@@ -144,7 +144,7 @@ public class DoctorWorkbenchService {
         return rows == null ? List.of() : rows;
     }
 
-    /** api.md 13.10：只返回启用且有库存的药品，供前端开方选择 */
+    /** 只返回启用且有剩余可开数量的药品；处方状态隐式占用对应数量。 */
     public List<MedicineOptionVO> medicines(String keyword) {
         String value = keyword == null || keyword.isBlank() ? null : keyword.trim();
         if (value != null && value.length() > 100) {
@@ -201,7 +201,7 @@ public class DoctorWorkbenchService {
 
         AppointmentStatus status = AppointmentStatus.fromDatabaseValue(lockedAppointment.getStatus());
         if (status == AppointmentStatus.COMPLETED || status == AppointmentStatus.PENDING_RX_PAY) {
-            // 幂等：把已产生的结果原样返回，不重置状态、不重复扣库存 / 不重复开方
+            // 幂等：把已产生的结果原样返回，不重置状态、不重复占用库存 / 不重复开方
             return existingResult(appointmentId, status);
         }
         if (!status.canCompleteConsultation()) {
@@ -239,7 +239,27 @@ public class DoctorWorkbenchService {
             }
 
             Map<Long, Medicine> medicineMap = new HashMap<>();
-            for (Medicine medicine : medicineDao.selectByIds(medicineIds)) {
+            Map<Long, Integer> requestedQuantities = new HashMap<>();
+            for (PrescriptionItemRequest item : items) {
+                requestedQuantities.put(item.getMedicineId(), item.getQuantity());
+            }
+            // Lock in ID order so concurrent prescriptions for shared medicines serialize safely.
+            medicineIds.sort(Long::compareTo);
+            for (Long medicineId : medicineIds) {
+                Medicine medicine = medicineDao.lockById(medicineId);
+                if (medicine == null || !Integer.valueOf(1).equals(medicine.getStatus())) {
+                    throw new BusinessException(BusinessErrorCode.BAD_REQUEST,
+                            "药品不存在或已停用：" + medicineId);
+                }
+                int reserved = medicineDao.selectReservedQuantitiesForUpdate(medicineId).stream()
+                        .filter(quantity -> quantity != null)
+                        .mapToInt(Integer::intValue)
+                        .sum();
+                int available = Math.max(0, (medicine.getStock() == null ? 0 : medicine.getStock()) - reserved);
+                if (requestedQuantities.get(medicineId) > available) {
+                    throw new BusinessException(BusinessErrorCode.CONFLICT,
+                            "药品可开库存不足，请刷新库存或调整数量：" + medicine.getName() + "（可用 " + available + "）");
+                }
                 medicineMap.put(medicine.getId(), medicine);
             }
             for (PrescriptionItemRequest item : items) {

@@ -41,6 +41,12 @@
       bind:click="onPay"
     >支付 {{ amountText }}</van-button>
   </view>
+  <view wx:if="{{ canPickup }}" class="rx-detail__footer safe-bottom pickup-footer">
+    <van-button block round type="primary" custom-class="btn-primary" loading="{{ pickuping }}" bind:click="onPickup">确认已取药</van-button>
+  </view>
+  <view wx:if="{{ prescription.status === 'dispensed' }}" class="rx-detail__footer safe-bottom pickup-footer">
+    <van-button block round plain type="primary" custom-class="btn-primary" disabled>已完成取药</van-button>
+  </view>
 </view>
 
 <pay-drawer

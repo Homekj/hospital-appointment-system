@@ -14,15 +14,9 @@ npm run dev          # http://localhost:5173
 
 生产构建：`npm run build`（产物 `dist/`），预览：`npm run preview`。
 
-## 演示账号（登录页有一键填入按钮）
+## 登录说明
 
-| 角色 | 账号 | 密码 | 登录后首页 |
-|---|---|---|---|
-| 管理员 ADMIN | `admin` | `admin` | `/admin/dashboard` |
-| 医生 DOCTOR | `doctorzmh` | `123` | `/doctor/dashboard` |
-| 患者 USER | `wx_ogHVa5P9lsJ4o0rAE2EKJeCD-OAw` | `123` | `/patient/home` |
-
-患者演示账号来自 `sql/system.sql` 中绑定了演示预约数据的微信用户，密码哈希与医生账号相同，因此同样支持账密登录；小程序端走 `/api/auth/wx-login`。
+登录页不预填或展示演示账号，请手动输入已创建的账号和密码，并完成页面上的随机验证码校验。小程序患者可使用微信登录；需要网页登录时，患者需先设置网页登录密码。
 
 ## 环境变量
 

@@ -5,6 +5,7 @@ import com.aaa.backend.entity.Medicine;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -19,9 +20,21 @@ public interface MedicineDao extends BaseMapper<Medicine> {
 
     @Select("""
             <script>
-            SELECT id, name, spec, unit, price, stock, usage_desc AS usageDesc
-              FROM medicine
-             WHERE status = 1 AND stock &gt; 0
+            SELECT m.id, m.name, m.spec, m.unit, m.price,
+                   GREATEST(m.stock - COALESCE((
+                       SELECT SUM(pi.quantity)
+                         FROM prescription_item pi
+                         JOIN prescription p ON p.id = pi.prescription_id
+                        WHERE pi.medicine_id = m.id AND p.status IN ('unpaid', 'paid')
+                   ), 0), 0) AS stock,
+                   m.usage_desc AS usageDesc
+              FROM medicine m
+             WHERE m.status = 1 AND m.stock > COALESCE((
+                       SELECT SUM(pi.quantity)
+                         FROM prescription_item pi
+                         JOIN prescription p ON p.id = pi.prescription_id
+                        WHERE pi.medicine_id = m.id AND p.status IN ('unpaid', 'paid')
+                   ), 0)
             <if test='keyword != null and keyword != ""'>
                AND (name LIKE CONCAT('%', #{keyword}, '%') OR spec LIKE CONCAT('%', #{keyword}, '%'))
             </if>
@@ -30,4 +43,22 @@ public interface MedicineDao extends BaseMapper<Medicine> {
             </script>
             """)
     List<MedicineOptionVO> selectAvailable(@Param("keyword") String keyword);
+
+    /** Lock an inventory row while checking or finalizing stock movements. */
+    @Select("SELECT id, name, spec, unit, price, stock, usage_desc AS usageDesc, status FROM medicine WHERE id = #{id} FOR UPDATE")
+    Medicine lockById(@Param("id") Long id);
+
+    /** Active unpaid/paid prescription items reserve availability without changing physical stock. */
+    @Select("""
+            SELECT pi.quantity
+              FROM prescription_item pi
+              JOIN prescription p ON p.id = pi.prescription_id
+             WHERE pi.medicine_id = #{medicineId}
+               AND p.status IN ('unpaid', 'paid')
+             FOR UPDATE
+            """)
+    List<Integer> selectReservedQuantitiesForUpdate(@Param("medicineId") Long medicineId);
+
+    @Update("UPDATE medicine SET stock = stock - #{quantity} WHERE id = #{id} AND stock >= #{quantity}")
+    int deductStock(@Param("id") Long id, @Param("quantity") int quantity);
 }

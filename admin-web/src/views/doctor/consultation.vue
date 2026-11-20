@@ -92,12 +92,15 @@
                 <el-table-column label="药品" min-width="180">
                   <template slot-scope="{ row }">
                     <el-select v-model="row.medicineId" filterable size="mini" placeholder="选择药品" style="width:100%" :disabled="!canComplete">
-                      <el-option v-for="m in medicineOptions" :key="m.id" :label="`${m.name} ${m.spec || ''} ¥${m.price}`" :value="m.id" />
+                      <el-option v-for="m in medicineOptions" :key="m.id" :label="`${m.name} ${m.spec || ''} ¥${m.price}（余${m.stock}）`" :value="m.id" />
                     </el-select>
                   </template>
                 </el-table-column>
-                <el-table-column label="数量" width="90">
-                  <template slot-scope="{ row }"><el-input-number v-model="row.quantity" :min="1" size="mini" controls-position="right" style="width:80px" :disabled="!canComplete" /></template>
+                <el-table-column label="开药数量" width="150" align="center">
+                  <template slot-scope="{ row }"><el-input-number v-model="row.quantity" :min="1" :max="selectedMedicine(row) ? selectedMedicine(row).stock : undefined" :precision="0" :step="1" size="mini" controls-position="right" style="width:128px" :disabled="!canComplete" /></template>
+                </el-table-column>
+                <el-table-column label="库存余量" width="100" align="center">
+                  <template slot-scope="{ row }"><span :class="{ 'stock-short': exceedsStock(row) }">{{ selectedMedicine(row) ? selectedMedicine(row).stock : '-' }}</span></template>
                 </el-table-column>
                 <el-table-column label="用法" width="120">
                   <template slot-scope="{ row }"><el-input v-model="row.dosage" size="mini" placeholder="每次1片" :disabled="!canComplete" /></template>
@@ -113,7 +116,8 @@
                 </el-table-column>
                 <template slot="empty">暂无药品，直接完成即无处方</template>
               </el-table>
-              <el-button type="success" icon="el-icon-circle-check" style="margin-top:14px" :disabled="!canComplete" :loading="completing" @click="complete">完成接诊{{ items.length ? '并开处方' : '' }}</el-button>
+              <el-alert v-if="hasStockShortage" type="error" :closable="false" style="margin-top:12px" title="处方数量超过药品当前库存，请调整数量后再提交。" />
+              <el-button type="success" icon="el-icon-circle-check" style="margin-top:14px" :disabled="!canComplete || hasStockShortage" :loading="completing" @click="complete">完成接诊{{ items.length ? '并开处方' : '' }}</el-button>
               <div v-if="!canComplete" class="muted" style="font-size:12px; margin-top:10px">需先「开始接诊」并保存病历，才能完成接诊。</div>
             </template>
           </div>
@@ -157,6 +161,7 @@ export default {
     canStart() { return this.status === 'checked_in' },
     canSaveClinical() { return this.status === 'in_consultation' },
     canComplete() { return this.status === 'in_consultation' && !!this.detail.consultation },
+    hasStockShortage() { return this.items.some(item => this.exceedsStock(item)) },
     statusHint() {
       return { unpaid: '患者尚未支付挂号费', pending: '患者尚未签到', completed: '该预约已完成', cancelled: '该预约已取消', pending_rx_pay: '已开处方，等待患者缴药费' }[this.status] || '当前状态不可操作'
     },
@@ -177,6 +182,11 @@ export default {
     statusText, statusTagType,
     formatDay: formatDate,
     money(value) { return '¥' + Number(value || 0).toFixed(2) },
+    selectedMedicine(item) { return this.medicineOptions.find(medicine => Number(medicine.id) === Number(item.medicineId)) },
+    exceedsStock(item) {
+      const medicine = this.selectedMedicine(item)
+      return !!medicine && Number(item.quantity || 0) > Number(medicine.stock || 0)
+    },
     maskPhone(value) { return value ? String(value).slice(0, 3) + '****' + String(value).slice(-4) : '-' },
     loadCandidates() {
       Promise.all([
@@ -226,6 +236,7 @@ export default {
     complete() {
       const invalid = this.items.some(item => !item.medicineId || !item.quantity)
       if (invalid) { this.$message.warning('请为每一项选择药品并填写数量'); return }
+      if (this.hasStockShortage) { this.$message.error('开药数量不能超过当前库存'); return }
       this.completing = true
       doctorApi.complete(this.appointmentId, this.items)
         .then(result => {
@@ -233,6 +244,7 @@ export default {
           this.items = []
           this.loadDetail(this.appointmentId)
           this.loadCandidates()
+          doctorApi.medicines().then(list => { this.medicineOptions = list || [] }).catch(() => {})
         })
         .catch(() => {})
         .finally(() => { this.completing = false })
@@ -243,4 +255,5 @@ export default {
 
 <style scoped>
 .prescription-done { margin-bottom: 12px; }
+.stock-short { color: #f56c6c; font-weight: 600; }
 </style>

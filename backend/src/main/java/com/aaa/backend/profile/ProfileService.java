@@ -2,6 +2,7 @@ package com.aaa.backend.profile;
 
 import com.aaa.backend.auth.dto.LoginUser;
 import com.aaa.backend.profile.dto.PasswordUpdateRequest;
+import com.aaa.backend.profile.dto.PasswordChangeRequest;
 import com.aaa.backend.profile.dto.ProfileUpdateRequest;
 
 public interface ProfileService {
@@ -10,4 +11,6 @@ public interface ProfileService {
     LoginUser updateAvatar(Long userId, String path);
 
     void updatePassword(LoginUser currentUser, PasswordUpdateRequest request);
+
+    void changePassword(LoginUser currentUser, PasswordChangeRequest request);
 }

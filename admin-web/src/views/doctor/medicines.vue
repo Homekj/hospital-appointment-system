@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">药品目录</h2>
-        <p class="page-desc">开方可选药品（GET /api/doctor/medicines，仅启用且有库存的药品）</p>
+        <p class="page-desc">库存显示当前可开数量，已开出但未取药的处方会占用库存</p>
       </div>
     </div>
 

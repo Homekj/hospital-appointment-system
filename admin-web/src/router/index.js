@@ -26,7 +26,8 @@ const doctorChildren = [
   { path: '/doctor/schedules', name: 'DoctorSchedules', component: () => import('@/views/doctor/schedules.vue'), meta: { title: '我的排班', icon: 'el-icon-date', roles: DOCTOR } },
   { path: '/doctor/appointments', name: 'DoctorAppointments', component: () => import('@/views/doctor/appointments.vue'), meta: { title: '就诊列表', icon: 'el-icon-tickets', roles: DOCTOR } },
   { path: '/doctor/consultation', name: 'DoctorConsultation', component: () => import('@/views/doctor/consultation.vue'), meta: { title: '接诊工作台', icon: 'el-icon-edit-outline', roles: DOCTOR } },
-  { path: '/doctor/medicines', name: 'DoctorMedicines', component: () => import('@/views/doctor/medicines.vue'), meta: { title: '药品目录', icon: 'el-icon-first-aid-kit', roles: DOCTOR } }
+  { path: '/doctor/medicines', name: 'DoctorMedicines', component: () => import('@/views/doctor/medicines.vue'), meta: { title: '药品目录', icon: 'el-icon-first-aid-kit', roles: DOCTOR } },
+  { path: '/doctor/profile', name: 'DoctorProfile', component: () => import('@/views/doctor/profile.vue'), meta: { title: '个人资料', icon: 'el-icon-user', roles: DOCTOR } }
 ]
 
 const patientChildren = [

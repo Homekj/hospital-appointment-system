@@ -229,18 +229,18 @@ pending --用户或管理员取消--> cancelled
 | 状态 | 含义 | 允许操作 |
 |---|---|---|
 | `unpaid` | 待支付 | 患者支付、管理员取消 |
-| `paid` | 已支付，待发药 | 管理员发药 |
-| `dispensed` | 已发药 | 只读 |
+| `paid` | 已支付，待取药 | 患者确认取药或管理员发药 |
+| `dispensed` | 已取药/已发药 | 只读 |
 | `cancelled` | 已取消 | 只读 |
 
 处方流转：
 
 ```text
-unpaid --患者支付--> paid --管理员发药--> dispensed
+unpaid --患者支付--> paid --患者确认取药或管理员发药--> dispensed
 unpaid --管理员取消--> cancelled
 ```
 
-处方支付后，预约仍保持 `pending_rx_pay`；管理员发药成功后，将处方更新为 `dispensed`，同时将预约更新为 `completed`。
+处方支付后，预约仍保持 `pending_rx_pay`；患者确认取药或管理员发药成功后，将处方更新为 `dispensed`，同时将预约更新为 `completed`。`unpaid` 和 `paid` 处方会占用可开库存；取药/发药时扣减实物库存，取消未支付处方时释放占用。
 
 ### 5.3 其他枚举
 
@@ -1015,6 +1015,18 @@ WHERE id = ?
 
 成功响应 `data` 为支付后的处方对象。
 
+### 9.4 确认取药
+
+`PUT /api/prescriptions/{id}/pickup`
+
+权限：`USER`，且处方属于当前用户。仅 `paid` 处方可确认；成功后处方变为 `dispensed`，关联预约变为 `completed`。Web 患者中心、小程序与管理员发药共享同一处方和预约状态，重复确认幂等返回已取药处方。
+
+### 9.5 患者修改网页登录密码
+
+`PUT /api/profile/password/change`
+
+请求字段：`currentPassword`、`newPassword`。验证当前密码后更新患者共享账号密码；该密码用于 Web 登录及小程序中设置的网页登录密码。微信一键登录仍使用微信身份凭证，不依赖此密码。
+
 ## 10. 消息通知接口
 
 ### 10.1 通知列表
@@ -1329,7 +1341,7 @@ WHERE id = ?
 - 仅 `paid` 可发药。
 - 发药成功将处方改为 `dispensed`。
 - 同一事务内将关联预约改为 `completed`。
-- 可扣减 `medicine.stock`，库存不足时拒绝发药并返回 `409`。
+- 发药时扣减 `medicine.stock`；`unpaid` / `paid` 处方已计入库存占用，因此发药后可用库存不会二次减少。
 - 重复发药必须幂等，不得重复扣库存；已停用药品仍可按已支付处方发药，但库存必须充足。
 
 取消处方规则：
@@ -1418,6 +1430,14 @@ WHERE id = ?
 `GET /api/doctor/me`
 
 成功响应为当前医生对象，包含科室和账号展示字段。
+
+### 13.1.1 修改医生登录密码
+
+`PUT /api/doctor/password`
+
+请求字段：`currentPassword`、`newPassword`。服务端校验当前密码后保存新密码；新密码为 8–72 个字符且最多 72 个 UTF-8 字节。
+
+医生头像通过 `POST /api/files/upload` 上传，再调用 `PUT /api/doctor/avatar`。服务端同时更新医生账号头像和医生档案头像，并校验文件属于当前账号。
 
 ### 13.2 工作台统计
 
@@ -1566,6 +1586,8 @@ WHERE id = ?
 
 - 不允许客户端提交或信任 `unitPrice`、`amount`，必须由服务端按当前药品价格计算。
 - 药品名称、规格、单价写入处方快照。
+- 在同一事务内锁定药品库存行，扣除当前 `unpaid` / `paid` 处方占用量后校验可用库存；数量不足或药品停用时整笔开方回滚。
+- 处方状态本身用于计算占用量，无需新增库存标记字段。取消未支付处方后，该处方不再占用库存。
 - 明细数组不能包含重复 `medicineId`，重复时合并或返回 `400`。
 - 无处方时预约状态改为 `completed`。
 - 有处方时创建 `prescription` 和明细，状态为 `unpaid`，预约状态改为 `pending_rx_pay`。
@@ -1599,7 +1621,7 @@ WHERE id = ?
 |---|---|---:|---|
 | `keyword` | string | 否 | 药名或规格模糊查询 |
 
-该接口返回启用且有库存的药品数组，用于医生开方选择。
+该接口返回启用且可开数量大于零的药品数组。返回的 `stock` 是实物库存减去 `unpaid` / `paid` 处方占用量后的可开数量。
 
 ## 14. 关键数据对象与数据库映射
 
@@ -1820,6 +1842,7 @@ Redis 不可作为号源是否售出的唯一依据。Redis 不可用时，登�
 | `getPrescriptionByAppointment` | `GET /api/appointments/{id}/prescription` |
 | `getPrescription` | `GET /api/prescriptions/{id}` |
 | `payPrescription` | `POST /api/prescriptions/{id}/pay` |
+| `pickupPrescription` | `PUT /api/prescriptions/{id}/pickup` |
 | `submitAppointmentReview` | `POST /api/appointments/{id}/review` |
 | `triageAnalyze` | `POST /api/triage/analyze` |
 | `getNotifications` | `GET /api/notifications` |
@@ -1849,7 +1872,7 @@ Redis 不可作为号源是否售出的唯一依据。Redis 不可用时，登�
 7. 医生开始接诊后变为 `in_consultation`。
 8. 医生保存病历并开方后变为 `pending_rx_pay`。
 9. 患者支付处方后处方变为 `paid`，小程序展示“待取药”。
-10. 管理员发药后处方变为 `dispensed`，预约变为 `completed`。
+10. 患者可在 Web 或小程序确认取药，也可由管理员发药；处方变为 `dispensed`，预约同步变为 `completed`。
 11. 患者查看病历和处方并提交一次评价。
 
 ### 19.2 并发与异常

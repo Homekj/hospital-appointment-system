@@ -101,9 +101,6 @@ public class AdminOperationsService {
 
     @Transactional(rollbackFor = Exception.class)
     public PrescriptionDetailVO dispense(Long id) {
-        if (prescriptionDao.lockStatusForUpdate(id) == null) {
-            throw new BusinessException(BusinessErrorCode.NOT_FOUND, "处方不存在");
-        }
         PrescriptionDetailVO prescription = requirePrescription(id);
         if ("dispensed".equals(prescription.getStatus())) {
             return prescriptionDetail(id);
@@ -115,6 +112,22 @@ public class AdminOperationsService {
         if (items == null || items.isEmpty()) {
             throw new BusinessException(BusinessErrorCode.CONFLICT, "处方没有药品明细，不能发药");
         }
+        List<Long> medicineIds = items.stream().map(PrescriptionItemVO::getMedicineId)
+                .filter(java.util.Objects::nonNull).distinct().sorted().toList();
+        for (Long medicineId : medicineIds) {
+            if (medicineDao.lockStockForUpdate(medicineId) == null) {
+                throw new BusinessException(BusinessErrorCode.CONFLICT, "药品库存不足或药品已不存在");
+            }
+        }
+        if (prescriptionDao.lockForUpdate(id) == null) {
+            throw new BusinessException(BusinessErrorCode.NOT_FOUND, "处方不存在");
+        }
+        prescription = requirePrescription(id);
+        if ("dispensed".equals(prescription.getStatus())) return prescriptionDetail(id);
+        if (!"paid".equals(prescription.getStatus())) {
+            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, "仅已支付处方可以发药");
+        }
+        items = prescriptionItemDao.selectByPrescription(id);
         for (PrescriptionItemVO item : items) {
             if (item.getMedicineId() == null || item.getQuantity() == null || item.getQuantity() <= 0
                     || medicineDao.deductStock(item.getMedicineId(), item.getQuantity()) == 0) {
@@ -134,7 +147,7 @@ public class AdminOperationsService {
 
     @Transactional(rollbackFor = Exception.class)
     public PrescriptionDetailVO cancelPrescription(Long id) {
-        if (prescriptionDao.lockStatusForUpdate(id) == null) {
+        if (prescriptionDao.lockForUpdate(id) == null) {
             throw new BusinessException(BusinessErrorCode.NOT_FOUND, "处方不存在");
         }
         PrescriptionDetailVO prescription = requirePrescription(id);
@@ -180,8 +193,18 @@ public class AdminOperationsService {
 
     @Transactional(rollbackFor = Exception.class)
     public Medicine updateMedicine(Long id, MedicineSaveRequest request) {
+        Integer lockedStock = medicineDao.lockStockForUpdate(id);
+        if (lockedStock == null) throw new BusinessException(BusinessErrorCode.NOT_FOUND, "药品不存在");
         Medicine current = medicineDetail(id);
         Medicine updated = request.toEntity();
+        int reserved = medicineDao.selectReservedQuantitiesForUpdate(id).stream()
+                .filter(quantity -> quantity != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+        if (updated.getStock() != null && updated.getStock() < reserved) {
+            throw new BusinessException(BusinessErrorCode.CONFLICT,
+                    "库存不能低于未取药处方预留数量（" + reserved + "）");
+        }
         if (request.getStatus() == null) updated.setStatus(current.getStatus());
         LambdaUpdateWrapper<Medicine> wrapper = new LambdaUpdateWrapper<Medicine>()
                 .eq(Medicine::getId, id)

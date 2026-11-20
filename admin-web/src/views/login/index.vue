@@ -19,22 +19,16 @@
         <el-form-item prop="password">
           <el-input v-model="form.password" prefix-icon="el-icon-lock" type="password" placeholder="请输入密码" show-password clearable />
         </el-form-item>
+        <el-form-item prop="captcha">
+          <el-input v-model="form.captcha" prefix-icon="el-icon-key" placeholder="请输入右侧验证码" maxlength="4" autocomplete="off">
+            <template slot="append">
+              <button class="captcha-code" type="button" title="点击更换验证码" @click="refreshCaptcha">{{ captchaCode }}</button>
+            </template>
+          </el-input>
+        </el-form-item>
       </el-form>
 
       <el-button type="primary" class="login-btn" :loading="loading" @click="submit">登 录</el-button>
-
-      <div class="demo-box">
-        <div class="demo-title">演示账号（点击自动填入）</div>
-        <div class="demo-buttons">
-          <el-button size="mini" icon="el-icon-s-custom" @click="fill('admin', 'admin')">管理员</el-button>
-          <el-button size="mini" icon="el-icon-user" @click="fill('doctorzmh', '123')">医生</el-button>
-          <el-button size="mini" icon="el-icon-s-check" @click="fill(PATIENT_ACCOUNT, '123')">患者</el-button>
-        </div>
-        <div class="demo-hint">
-          管理员：admin / admin　·　医生：doctorzmh / 123<br />
-          患者：{{ PATIENT_ACCOUNT }} / 123（演示数据绑定此账号）
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -43,31 +37,37 @@
 import { authApi } from '@/api/admin'
 import { setAuth, clearAuth, roleHome } from '@/utils/auth'
 
-const PATIENT_ACCOUNT = 'wx_ogHVa5P9lsJ4o0rAE2EKJeCD-OAw'
-
 export default {
   name: 'LoginPage',
   data() {
     return {
-      PATIENT_ACCOUNT,
       loading: false,
-      form: { username: '', password: '' },
+      form: { username: '', password: '', captcha: '' },
+      captchaCode: '',
       rules: {
         username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-        password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+        password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+        captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
       }
     }
   },
+  created() { this.refreshCaptcha() },
   methods: {
-    fill(username, password) {
-      this.form = { username, password }
-      this.$nextTick(() => { if (this.$refs.form) this.$refs.form.clearValidate() })
+    refreshCaptcha() {
+      const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+      this.captchaCode = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
     },
     submit() {
       this.$refs.form.validate(valid => {
         if (!valid) return
+        if (this.form.captcha.trim().toUpperCase() !== this.captchaCode) {
+          this.$message.error('验证码不正确')
+          this.form.captcha = ''
+          this.refreshCaptcha()
+          return
+        }
         this.loading = true
-        authApi.login(this.form)
+        authApi.login({ username: this.form.username, password: this.form.password })
           .then(data => {
             if (!data || !data.token) {
               this.$message.error('登录响应缺少令牌')
@@ -86,7 +86,7 @@ export default {
             this.$router.replace(redirect || roleHome(role))
           })
           .catch(() => {})
-          .finally(() => { this.loading = false })
+          .finally(() => { this.loading = false; this.form.captcha = ''; this.refreshCaptcha() })
       })
     },
     roleLabel(role) {
@@ -97,8 +97,5 @@ export default {
 </script>
 
 <style scoped>
-.demo-box { margin-top: 20px; padding-top: 16px; border-top: 1px solid #eef1f6; }
-.demo-title { font-size: 12px; color: #8a93a6; margin-bottom: 10px; }
-.demo-buttons { display: flex; gap: 8px; justify-content: center; }
-.demo-hint { font-size: 11px; color: #a6afbf; text-align: center; margin-top: 12px; line-height: 1.8; word-break: break-all; }
+.captcha-code { border: 0; background: transparent; color: #1d6fe0; font-size: 18px; font-weight: 700; letter-spacing: 4px; cursor: pointer; }
 </style>

@@ -6,6 +6,7 @@ import com.aaa.backend.common.ApiResponse;
 import com.aaa.backend.profile.dto.AvatarUpdateRequest;
 import com.aaa.backend.profile.dto.ProfileUpdateRequest;
 import com.aaa.backend.profile.dto.PasswordUpdateRequest;
+import com.aaa.backend.profile.dto.PasswordChangeRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,6 +52,14 @@ public class ProfileController {
             @Valid @RequestBody PasswordUpdateRequest request
     ) {
         profileService.updatePassword(currentUserContext.requireUser(), request);
+        return ApiResponse.success();
+    }
+
+    @PutMapping("/password/change")
+    public ApiResponse<Void> changePassword(
+            @Valid @RequestBody PasswordChangeRequest request
+    ) {
+        profileService.changePassword(currentUserContext.requireUser(), request);
         return ApiResponse.success();
     }
 }

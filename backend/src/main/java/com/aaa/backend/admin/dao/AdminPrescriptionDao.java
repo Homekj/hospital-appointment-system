@@ -9,9 +9,9 @@ import java.util.List;
 
 public interface AdminPrescriptionDao {
 
-    /** Serialize dispense/cancel actions before any stock or appointment changes. */
-    @Select("SELECT status FROM prescription WHERE id = #{id} FOR UPDATE")
-    String lockStatusForUpdate(@Param("id") Long id);
+    /** Serialize prescription status changes; medicine rows are locked first during dispensing. */
+    @Select("SELECT id FROM prescription WHERE id = #{id} FOR UPDATE")
+    Long lockForUpdate(@Param("id") Long id);
 
     String DETAIL_COLUMNS = """
             SELECT p.id, p.appointment_id AS appointmentId, p.user_id AS userId,

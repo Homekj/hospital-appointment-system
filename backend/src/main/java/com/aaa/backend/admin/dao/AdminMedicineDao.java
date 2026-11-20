@@ -38,6 +38,19 @@ public interface AdminMedicineDao extends BaseMapper<Medicine> {
             """)
     long countAdminPage(@Param("keyword") String keyword, @Param("status") Integer status);
 
+    @Select("SELECT stock FROM medicine WHERE id = #{id} FOR UPDATE")
+    Integer lockStockForUpdate(@Param("id") Long id);
+
+    @Select("""
+            SELECT pi.quantity
+              FROM prescription_item pi
+              JOIN prescription p ON p.id = pi.prescription_id
+             WHERE pi.medicine_id = #{medicineId}
+               AND p.status IN ('unpaid', 'paid')
+             FOR UPDATE
+            """)
+    List<Integer> selectReservedQuantitiesForUpdate(@Param("medicineId") Long medicineId);
+
     @Update("UPDATE medicine SET stock = stock - #{quantity} WHERE id = #{id} AND stock >= #{quantity}")
     int deductStock(@Param("id") Long id, @Param("quantity") int quantity);
 }

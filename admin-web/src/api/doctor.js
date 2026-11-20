@@ -6,6 +6,8 @@ import request from '@/utils/request'
  */
 export const doctorApi = {
   me: () => request.get('/doctor/me'),
+  updatePassword: data => request.put('/doctor/password', data),
+  updateAvatar: path => request.put('/doctor/avatar', { path }),
   stats: () => request.get('/doctor/stats'),
   dashboard: () => request.get('/doctor/dashboard'),
   schedules: params => request.get('/doctor/schedules', { params }),
