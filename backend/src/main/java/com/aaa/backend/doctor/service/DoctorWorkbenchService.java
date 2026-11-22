@@ -19,6 +19,7 @@ import com.aaa.backend.doctor.vo.CompleteConsultationVO;
 import com.aaa.backend.doctor.vo.DoctorAppointmentDetailVO;
 import com.aaa.backend.doctor.vo.DoctorDashboardVO;
 import com.aaa.backend.doctor.vo.DoctorProfileVO;
+import com.aaa.backend.doctor.vo.DoctorQueueEntry;
 import com.aaa.backend.doctor.vo.DoctorScheduleVO;
 import com.aaa.backend.doctor.vo.DoctorStatsVO;
 import com.aaa.backend.doctor.vo.MedicineOptionVO;
@@ -171,6 +172,10 @@ public class DoctorWorkbenchService {
         vo.setConsultation(consultationRecordDao.selectByAppointment(appointmentId));
         vo.setPrescription(workbenchDao.selectPrescriptionBrief(appointmentId));
         return vo;
+    }
+
+    public List<DoctorQueueEntry> todayQueue(Long doctorId) {
+        return workbenchDao.selectTodayQueue(doctorId);
     }
 
     /** 开始接诊：checked_in -> in_consultation，契约实现本身幂等 */

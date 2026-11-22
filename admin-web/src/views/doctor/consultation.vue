@@ -3,19 +3,19 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">接诊工作台</h2>
-        <p class="page-desc">叫号 → 填写病历 → 完成接诊（可同时开处方），全部走 /api/doctor/appointments 状态机</p>
+        <p class="page-desc">查看今日候诊，叫号后填写病历并完成接诊</p>
       </div>
     </div>
 
     <div class="panel">
       <div class="toolbar">
         <div class="filters">
-          <el-select v-model="appointmentId" filterable clearable placeholder="选择待接诊 / 就诊中的预约" style="width: 380px" @change="loadDetail">
-            <el-option v-for="a in candidates" :key="a.id" :label="`#${a.id} ${a.patientName} · ${formatDay(a.scheduleDate)} ${a.timeSlot} · ${statusText(a.status)}`" :value="a.id" />
+          <el-select v-model="appointmentId" filterable clearable placeholder="选择今日候诊或接诊中的预约" style="width: 380px" @change="loadDetail">
+            <el-option v-for="a in candidates" :key="a.id" :label="`#${a.id} ${a.patientName} · ${a.timeSlot} · ${statusText(a.status)}${a.checkInTime ? ' · 签到 ' + a.checkInTime.slice(11, 16) : ''}`" :value="a.id" />
           </el-select>
           <el-input v-model="manualId" placeholder="或直接输入预约 ID" style="width: 180px" @keyup.enter.native="loadById" />
           <el-button type="primary" icon="el-icon-search" @click="loadById">加载</el-button>
-          <el-button icon="el-icon-refresh" @click="loadCandidates">刷新列表</el-button>
+          <el-button icon="el-icon-refresh" @click="loadCandidates">刷新候诊</el-button>
         </div>
       </div>
     </div>
@@ -189,12 +189,9 @@ export default {
     },
     maskPhone(value) { return value ? String(value).slice(0, 3) + '****' + String(value).slice(-4) : '-' },
     loadCandidates() {
-      Promise.all([
-        doctorApi.appointments({ current: 1, size: 30, status: 'checked_in' }),
-        doctorApi.appointments({ current: 1, size: 30, status: 'in_consultation' })
-      ]).then(([checked, ongoing]) => {
-        this.candidates = [...((checked && checked.records) || []), ...((ongoing && ongoing.records) || [])]
-      }).catch(() => {})
+      doctorApi.queue()
+        .then(list => { this.candidates = list || [] })
+        .catch(() => {})
     },
     loadById() {
       const id = Number(this.manualId)

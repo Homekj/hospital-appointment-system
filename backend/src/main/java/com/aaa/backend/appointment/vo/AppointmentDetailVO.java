@@ -40,6 +40,10 @@ public class AppointmentDetailVO {
     private LocalDateTime payTime;
 
     private String status;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime checkInTime;
+    private Long waitingAhead;
+    private Long inConsultationCount;
     private String remark;
     private Long prescriptionId;
     private String prescriptionStatus;

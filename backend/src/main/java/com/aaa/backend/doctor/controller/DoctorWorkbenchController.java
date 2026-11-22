@@ -17,6 +17,7 @@ import com.aaa.backend.doctor.vo.CompleteConsultationVO;
 import com.aaa.backend.doctor.vo.DoctorAppointmentDetailVO;
 import com.aaa.backend.doctor.vo.DoctorDashboardVO;
 import com.aaa.backend.doctor.vo.DoctorProfileVO;
+import com.aaa.backend.doctor.vo.DoctorQueueEntry;
 import com.aaa.backend.doctor.vo.DoctorScheduleVO;
 import com.aaa.backend.doctor.vo.DoctorStatsVO;
 import com.aaa.backend.doctor.vo.MedicineOptionVO;
@@ -133,6 +134,11 @@ public class DoctorWorkbenchController {
                 page, limit, blankToNull(status), doctorId, departmentId,
                 blankToNull(nameFilter), startDate, endDate, scheduleDate);
         return ApiResponse.success(service.pageAppointments(currentDoctorId, query));
+    }
+
+    @GetMapping("/queue")
+    public ApiResponse<List<DoctorQueueEntry>> queue() {
+        return ApiResponse.success(service.todayQueue(currentUserContext.requireDoctorId()));
     }
 
     /** api.md 13.5 本人预约详情：预约 + 病历 + 处方摘要；属于其他医生返回 403 */

@@ -20,13 +20,21 @@ Page({
   },
 
   onLoad(options) {
-    this.loadOrder(options.id)
+    this.orderId = options.id
   },
 
   onShow() {
     if (this.orderId) this.loadOrder(this.orderId)
     this.loadBalance()
+    this.queueTimer = setInterval(() => {
+      if (this.data.order && this.data.order.rawStatus === 'checked_in') this.loadOrder(this.orderId, true)
+    }, 15000)
   },
+
+  onHide() { clearInterval(this.queueTimer) },
+  onUnload() { clearInterval(this.queueTimer) },
+
+  refreshOrder() { this.loadOrder(this.orderId) },
 
   async loadBalance() {
     if (!auth.isLoggedIn()) return
@@ -43,10 +51,11 @@ Page({
     }
   },
 
-  loadOrder(id) {
-    this.orderId = id
+  loadOrder(id, silent = false) {
+    const requestId = this.orderRequest = (this.orderRequest || 0) + 1
     api.getAppointmentById(id)
       .then((appt) => {
+        if (this.orderRequest !== requestId) return
         const order = toOrder(appt)
         const items = [
           { label: '就诊医生', value: order.doctorName },
@@ -70,7 +79,7 @@ Page({
           rxFeeText: formatFee(order.prescriptionAmount)
         })
       })
-      .catch((err) => toast(err.message || '订单不存在'))
+      .catch((err) => { if (!silent) toast(err.message || '无法刷新预约详情') })
   },
 
   onPayMethodTap(e) {

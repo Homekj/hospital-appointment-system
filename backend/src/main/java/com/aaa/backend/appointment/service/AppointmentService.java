@@ -94,8 +94,19 @@ public class AppointmentService {
         return new PageResult<>(records, total, current, size);
     }
 
+    @Transactional(readOnly = true)
     public AppointmentDetailVO detail(Long userId, Long appointmentId) {
-        return requireOwned(userId, appointmentId);
+        AppointmentDetailVO detail = requireOwned(userId, appointmentId);
+        AppointmentStatus status = AppointmentStatus.fromDatabaseValue(detail.getStatus());
+        if (status == AppointmentStatus.CHECKED_IN || status == AppointmentStatus.IN_CONSULTATION) {
+            AppointmentDetailVO queue = appointmentDao.queueDetails(appointmentId, userId);
+            if (queue != null) {
+                detail.setCheckInTime(queue.getCheckInTime());
+                detail.setWaitingAhead(queue.getWaitingAhead());
+                detail.setInConsultationCount(queue.getInConsultationCount());
+            }
+        }
+        return detail;
     }
 
     // ------------------------------------------------------------------ 写操作

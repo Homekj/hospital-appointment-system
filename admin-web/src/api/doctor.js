@@ -11,6 +11,7 @@ export const doctorApi = {
   stats: () => request.get('/doctor/stats'),
   dashboard: () => request.get('/doctor/dashboard'),
   schedules: params => request.get('/doctor/schedules', { params }),
+  queue: () => request.get('/doctor/queue'),
   appointments: params => request.get('/doctor/appointments', { params }),
   detail: id => request.get(`/doctor/appointments/${id}`),
   clinical: id => request.get(`/doctor/appointments/${id}/clinical`),

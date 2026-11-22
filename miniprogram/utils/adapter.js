@@ -133,7 +133,10 @@ function toOrder(appt) {
     canPayPrescription: rawStatus === 'pending_rx_pay' && appt.prescriptionStatus === 'unpaid',
     canViewRecord: !!appt.hasConsultation,
     canViewPrescription: !!appt.prescriptionId,
-    location: appt.departmentName ? `门诊楼 ${appt.departmentName}诊区` : '',
+    location: appt.departmentLocation || '',
+    checkInTime: appt.checkInTime || '',
+    waitingAhead: appt.waitingAhead,
+    inConsultationCount: appt.inConsultationCount,
     remark: appt.remark || '',
     createTime: appt.createTime || '',
     evaluated: !!appt.evaluated

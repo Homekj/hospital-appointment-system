@@ -190,7 +190,7 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
             balanceLogDao.insert(logEntry);
         }
         log.info("管理员取消预约: appointmentId={}, operatorUserId={}", appointmentId, operatorUserId);
-        notifyQuietly(vo.getUserId(), "预约已被管理员取消", "如需重新就诊请重新预约", appointmentId);
+        notifyQuietly(vo.getUserId(), "appointment_cancelled", "预约已被管理员取消", "如需重新就诊请重新预约", appointmentId);
     }
 
     /** 开始接诊：checked_in -> in_consultation，重复调用幂等。 */
@@ -224,6 +224,7 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
             }
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT);
         }
+        notifyQuietly(row.getUserId(), "doctor_called", "医生已叫号", "请查看预约详情，并按现场指引前往诊室。", appointmentId);
     }
 
     /**
@@ -308,11 +309,11 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
     }
 
     /** 站内通知属于附属动作，失败不得回滚上述状态流转。 */
-    private void notifyQuietly(Long userId, String title, String content, Long bizId) {
+    private void notifyQuietly(Long userId, String type, String title, String content, Long bizId) {
         try {
             UserNotification notification = new UserNotification();
             notification.setUserId(userId);
-            notification.setType("appointment_cancelled");
+            notification.setType(type);
             notification.setTitle(title);
             notification.setContent(content);
             notification.setBizType("appointment");

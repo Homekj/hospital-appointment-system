@@ -890,6 +890,8 @@ WHERE id = ?
 
 成功响应 `data` 为签到后的预约对象。
 
+预约详情在已签到时返回 checkInTime、waitingAhead（同排班中更早签到且仍在候诊的人数）和 inConsultationCount（同排班正在接诊的人数）。同一签到时间按预约 ID 排序。
+
 ### 8.7 查看病历
 
 `GET /api/appointments/{id}/consultation`
@@ -1492,6 +1494,8 @@ WHERE id = ?
 | `scheduleDate` | string | 否 | 就诊日期 |
 
 成功响应为分页预约对象，只能包含当前医生数据。
+
+医生可通过 GET /api/doctor/queue 读取本人当天的已签到和接诊中预约。接诊中置顶，候诊按时段和签到顺序排列。开始接诊成功时给预约账号发站内叫号通知。
 
 ### 13.5 预约详情
 

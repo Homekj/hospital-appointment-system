@@ -3,6 +3,7 @@ package com.aaa.backend.doctor.dao;
 import com.aaa.backend.appointment.vo.AppointmentDetailVO;
 import com.aaa.backend.doctor.vo.DoctorDashboardVO;
 import com.aaa.backend.doctor.vo.DoctorProfileVO;
+import com.aaa.backend.doctor.vo.DoctorQueueEntry;
 import com.aaa.backend.doctor.vo.DoctorScheduleVO;
 import com.aaa.backend.doctor.vo.PrescriptionBriefVO;
 import org.apache.ibatis.annotations.Param;
@@ -17,6 +18,16 @@ import java.util.List;
  * 用来区分「记录不存在 404」与「属于别的医生 403」。
  */
 public interface DoctorWorkbenchDao {
+
+    @Select("""
+            SELECT a.id, a.patient_name, s.time_slot, a.status, a.check_in_time
+              FROM schedule s JOIN appointment a ON a.schedule_id = s.id
+             WHERE s.doctor_id = #{doctorId} AND s.schedule_date = CURDATE()
+               AND a.status IN ('checked_in', 'in_consultation')
+             ORDER BY (a.status = 'in_consultation') DESC, s.time_slot, s.id,
+                      COALESCE(a.check_in_time, a.update_time), a.id
+            """)
+    List<DoctorQueueEntry> selectTodayQueue(@Param("doctorId") Long doctorId);
 
     /** Current locking read for doctor-owned appointment writes. */
     @Select("""

@@ -44,6 +44,22 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
               LEFT JOIN prescription p ON p.appointment_id = a.id
             """;
 
+    @Select("""
+            SELECT a.check_in_time,
+                   CASE WHEN a.status = 'checked_in' THEN
+                     (SELECT COUNT(*) FROM appointment q
+                       WHERE q.schedule_id = a.schedule_id AND q.status = 'checked_in'
+                         AND (COALESCE(q.check_in_time, q.update_time), q.id)
+                           < (COALESCE(a.check_in_time, a.update_time), a.id))
+                   END AS waiting_ahead,
+                   CASE WHEN a.status = 'checked_in' THEN
+                     (SELECT COUNT(*) FROM appointment q
+                       WHERE q.schedule_id = a.schedule_id AND q.status = 'in_consultation')
+                   END AS in_consultation_count
+              FROM appointment a WHERE a.id = #{id} AND a.user_id = #{userId}
+            """)
+    AppointmentDetailVO queueDetails(@Param("id") Long id, @Param("userId") Long userId);
+
     @Select(DETAIL_COLUMNS + " WHERE a.id = #{id} ")
     AppointmentDetailVO selectDetail(@Param("id") Long id);
 
@@ -122,7 +138,7 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
 
     /** 签到（严格）：仅 pending，且排班日期就是今天。 */
     @Update("""
-            UPDATE appointment SET status = 'checked_in'
+            UPDATE appointment SET status = 'checked_in', check_in_time = NOW(6)
              WHERE id = #{id}
                AND user_id = #{userId}
                AND status IN ('pending', 'confirmed')
@@ -136,7 +152,7 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
 
     /** 签到（宽松）：联调用，不校验就诊日期。 */
     @Update("""
-            UPDATE appointment SET status = 'checked_in'
+            UPDATE appointment SET status = 'checked_in', check_in_time = NOW(6)
              WHERE id = #{id}
                AND user_id = #{userId}
                AND status IN ('pending', 'confirmed')

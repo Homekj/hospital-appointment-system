@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">我的预约</h2>
-        <p class="page-desc">挂号记录、支付、签到、取消与评价，全部对接 /api/appointments</p>
+        <p class="page-desc">查看挂号记录、签到和候诊进度</p>
       </div>
     </div>
 
@@ -24,6 +24,7 @@
     <div class="panel" v-loading="loading">
       <el-table :data="rows" border stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="75" />
+        <el-table-column prop="patientName" label="就诊人" min-width="95" />
         <el-table-column prop="doctorName" label="医生" width="110" />
         <el-table-column prop="departmentName" label="科室" min-width="110" />
         <el-table-column label="就诊日期" width="125">
@@ -73,10 +74,19 @@
           <el-col :span="12"><p><strong>支付方式</strong>{{ detail.payMethodText || '-' }}</p></el-col>
           <el-col :span="12"><p><strong>证件号</strong>{{ detail.idCard || '未填写' }}</p></el-col>
           <el-col :span="12"><p><strong>下单时间</strong>{{ detail.createTime | time }}</p></el-col>
+          <el-col :span="24"><p><strong>就诊地点</strong>{{ detail.departmentLocation || '请向医院导诊台确认' }}</p></el-col>
+          <el-col v-if="detail.status === 'checked_in' && detail.waitingAhead != null" :span="24">
+            <p><strong>本时段前方等候</strong>{{ detail.waitingAhead }} 位<span v-if="detail.inConsultationCount">，正在接诊 {{ detail.inConsultationCount }} 位</span></p>
+            <p class="muted">请留意现场叫号，接诊次序以现场安排为准。</p>
+          </el-col>
+          <el-col v-if="detail.status === 'in_consultation'" :span="24"><p>医生已叫号，请按现场指引前往诊室。</p></el-col>
           <el-col :span="24"><p><strong>备注</strong>{{ detail.remark || '-' }}</p></el-col>
         </el-row>
       </div>
-      <span slot="footer"><el-button type="primary" @click="detailVisible = false">关闭</el-button></span>
+      <span slot="footer">
+        <el-button v-if="detail.id" icon="el-icon-refresh" :loading="detailLoading" @click="loadDetail(detail.id)">刷新</el-button>
+        <el-button type="primary" @click="detailVisible = false">关闭</el-button>
+      </span>
     </el-dialog>
 
     <el-dialog title="支付挂号费" :visible.sync="payVisible" width="400px" :close-on-click-modal="false">
@@ -135,8 +145,11 @@ export default {
     showDetail(row) {
       this.detail = {}
       this.detailVisible = true
+      this.loadDetail(row.id)
+    },
+    loadDetail(id) {
       this.detailLoading = true
-      patientApi.appointmentDetail(row.id)
+      patientApi.appointmentDetail(id)
         .then(data => { this.detail = data || {} })
         .catch(() => {})
         .finally(() => { this.detailLoading = false })
@@ -162,7 +175,7 @@ export default {
     },
     checkIn(row) {
       patientApi.checkIn(row.id)
-        .then(() => { this.$message.success('签到成功'); this.loadData() })
+        .then(() => { this.$message.success('签到成功'); this.loadData(); this.showDetail(row) })
         .catch(() => {})
     },
     goPrescription(row) {
