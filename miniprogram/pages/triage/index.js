@@ -42,7 +42,7 @@ Page({
     api.triageAnalyze(text)
       .then((result) => {
         const app = getApp()
-        app.globalData.triageResult = { ...result, symptom: text }
+        app.globalData.triageResult = result
         wx.navigateTo({ url: '/pages/triage/result' })
       })
       .catch((err) => {

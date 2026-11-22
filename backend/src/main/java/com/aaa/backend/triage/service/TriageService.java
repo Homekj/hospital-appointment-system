@@ -5,6 +5,7 @@ import com.aaa.backend.entity.Department;
 import com.aaa.backend.triage.vo.TriageDepartmentVO;
 import com.aaa.backend.triage.vo.TriageResultVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -12,7 +13,6 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * 智能分诊（科室推荐）。
@@ -26,11 +26,12 @@ import java.util.regex.Pattern;
 @Service
 public class TriageService {
 
-    private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\u4e00-\\u9fa5a-zA-Z0-9]+");
-
     private static final Set<String> URGENT_KEYWORDS = Set.of(
             "呼吸困难", "意识不清", "意识模糊", "昏迷", "大出血", "剧烈胸痛",
             "持续高热", "抽搐", "休克", "急性腹痛", "咯血", "猝倒");
+
+    private static final List<String> HUMAN_REVIEW_KEYWORDS = List.of(
+            "孕", "产后", "儿童", "新生儿", "婴儿", "婴幼儿", "小儿", "宝宝");
 
     /** 每条规则 = 科室名称/简介命中词 + 该科室关注的症状词 + 命中权重。 */
     private record Rule(List<String> departmentHints, List<String> keywords, int weight) {
@@ -60,26 +61,32 @@ public class TriageService {
             new Rule(List.of("儿", "小儿", "儿科"),
                     List.of("小儿", "儿童", "宝宝", "婴幼儿", "发烧", "接种"), 3),
             new Rule(List.of("泌尿", "肾", "外科"),
-                    List.of("尿痛", "尿频", "尿急", "血尿", "腰痛", "肾结石"), 3),
-            new Rule(List.of("急诊", "急救"),
-                    List.of("呼吸困难", "意识不清", "昏迷", "大出血", "剧烈胸痛", "持续高热", "休克"), 5),
-            // 演示科室表里没有「急诊」，急症词必须能落到现有科室上，否则只会走兜底推荐
-            new Rule(List.of("全科", "内科", "传染"),
-                    List.of("呼吸困难", "意识不清", "意识模糊", "昏迷", "大出血", "剧烈胸痛",
-                            "持续高热", "抽搐", "休克", "急性腹痛", "咯血", "猝倒"), 8)
+                    List.of("尿痛", "尿频", "尿急", "血尿", "腰痛", "肾结石"), 3)
     );
 
     private static final String BASE_ADVICE =
-            "若持续高热、呼吸困难或意识异常，请立即线下就医；本结果仅为科室推荐，不构成诊断或医疗建议。";
+            "科室建议仅供导航。出现紧急情况，请立即寻求线下急救。";
 
     private final DepartmentDao departmentDao;
 
-    public TriageService(DepartmentDao departmentDao) {
+    private final String helpPhone;
+
+    public TriageService(DepartmentDao departmentDao, @Value("${triage.help-phone:}") String helpPhone) {
         this.departmentDao = departmentDao;
+        String phone = helpPhone.trim();
+        this.helpPhone = phone.matches("[0-9+() -]{5,30}") ? phone : "";
     }
 
     public TriageResultVO analyze(String rawSymptom) {
         String symptom = rawSymptom == null ? "" : rawSymptom.trim();
+        if (URGENT_KEYWORDS.stream().anyMatch(symptom::contains)) {
+            return referToStaff("描述中匹配到紧急提示词",
+                    "请立即寻求线下急救，不要等待线上挂号。", true);
+        }
+        if (containsAny(symptom, HUMAN_REVIEW_KEYWORDS)) {
+            return referToStaff("建议由人工导诊协助选择科室",
+                    "涉及儿童、孕期或产后就诊，请联系医院导诊台确认。", false);
+        }
 
         // 只取启用科室，按展示顺序排好；排序放到后面按得分重排
         LambdaQueryWrapper<Department> query = new LambdaQueryWrapper<>();
@@ -118,7 +125,6 @@ public class TriageService {
             scored.add(vo);
         }
 
-        boolean urgent = URGENT_KEYWORDS.stream().anyMatch(symptom::contains);
         scored.sort(Comparator
                 .comparingInt((TriageDepartmentVO vo) -> nullToZero(vo.getScore())).reversed()
                 .thenComparingInt(vo -> nullToZero(vo.getSortOrder())));
@@ -128,37 +134,36 @@ public class TriageService {
                 .limit(5)
                 .toList();
         if (recommended.isEmpty()) {
-            // 没有任何规则命中时给一个兜底推荐，避免前端拿到空列表
-            recommended = scored.stream().limit(3).toList();
+            return referToStaff("暂未找到匹配的科室", "请联系医院导诊台确认就诊科室。", false);
         }
 
-        List<String> commonSigns = new ArrayList<>(matchedSigns);
-        if (commonSigns.isEmpty()) {
-            commonSigns = TOKEN_SPLIT.splitAsStream(symptom)
-                    .filter(token -> !token.isBlank() && token.length() <= 20)
-                    .distinct().limit(3).toList();
-        } else {
-            commonSigns = commonSigns.stream().limit(5).toList();
-        }
-
-        TriageResultVO result = new TriageResultVO();
-        result.setSummary(commonSigns.isEmpty()
-                ? "未识别到明确的症状关键词"
-                : "症状以" + String.join("、", commonSigns) + "为主");
-        result.setSymptomAnalysis(recommended.isEmpty()
-                ? "建议携带既往检查资料到院咨询导诊台"
-                : "结合您描述的症状，建议优先排查" + recommended.get(0).getName() + "相关疾病");
-        result.setCommonSigns(commonSigns);
-        result.setPreliminaryConclusion(recommended.isEmpty()
-                ? "请到院由导诊台协助选择科室"
-                : "可优先考虑" + recommended.stream().limit(2)
-                        .map(TriageDepartmentVO::getName).reduce((a, b) -> a + "或" + b).orElse("") + "就诊");
-        result.setAdvice(urgent
-                ? "⚠️ 描述中出现急症信号，请立即前往急诊或拨打急救电话，不要等待线上预约。" + BASE_ADVICE
-                : BASE_ADVICE);
-        result.setUrgent(urgent);
-        result.setSource("fallback");
+        TriageResultVO result = baseResult();
+        result.setSummary("匹配到科室导航关键词");
+        result.setSymptomAnalysis("以下开放科室与描述中的关键词相关。");
+        result.setCommonSigns(matchedSigns.stream().limit(5).toList());
+        result.setPreliminaryConclusion("可了解" + recommended.get(0).getName() + "的门诊安排");
+        result.setAdvice(BASE_ADVICE);
         result.setDepartments(recommended);
+        return result;
+    }
+
+    private TriageResultVO referToStaff(String title, String advice, boolean urgent) {
+        TriageResultVO result = baseResult();
+        result.setSummary(title);
+        result.setSymptomAnalysis(advice);
+        result.setPreliminaryConclusion(title);
+        result.setCommonSigns(List.of());
+        result.setAdvice(advice + BASE_ADVICE);
+        result.setUrgent(urgent);
+        result.setRequiresHumanHelp(true);
+        result.setDepartments(List.of());
+        return result;
+    }
+
+    private TriageResultVO baseResult() {
+        TriageResultVO result = new TriageResultVO();
+        result.setSource("fallback");
+        result.setHelpPhone(helpPhone);
         return result;
     }
 

@@ -1,68 +1,31 @@
 const { enrichDepartments } = require('../../utils/dept-meta')
 const { goDeptTab } = require('../../utils/tab')
-const api = require('../../utils/api')
 
 Page({
   data: {
-    loading: true,
-    symptom: '',
-    summary: '',
-    symptomAnalysis: '',
-    commonSigns: [],
-    preliminaryConclusion: '',
+    conclusion: '',
     advice: '',
     urgent: false,
-    source: '',
-    sourceLabel: '',
+    helpPhone: '',
     departments: []
   },
 
-  onLoad(options) {
+  onLoad() {
     const app = getApp()
-    const cached = app.globalData.triageResult
-    if (cached && cached.departments) {
-      app.globalData.triageResult = null
-      this.applyResult(cached)
+    const result = app.globalData.triageResult
+    app.globalData.triageResult = null
+    if (!result) {
+      wx.showToast({ title: '请先填写症状描述', icon: 'none' })
+      wx.navigateBack()
       return
     }
-
-    const symptom = decodeURIComponent(options.symptom || '')
-    if (symptom) {
-      this.setData({ symptom })
-      this.fetchAnalyze(symptom)
-      return
-    }
-
-    this.setData({ loading: false })
-    wx.showToast({ title: '请先描述症状', icon: 'none' })
-    setTimeout(() => wx.navigateBack(), 1500)
-  },
-
-  fetchAnalyze(symptom) {
-    this.setData({ loading: true })
-    api.triageAnalyze(symptom)
-      .then((result) => this.applyResult({ ...result, symptom }))
-      .catch((err) => {
-        wx.showToast({ title: err.message || '分析失败', icon: 'none' })
-        setTimeout(() => wx.navigateBack(), 1500)
-      })
-      .finally(() => this.setData({ loading: false }))
-  },
-
-  applyResult(result) {
-    const source = result.source || 'fallback'
+    const needsStaff = result.urgent || result.requiresHumanHelp
     this.setData({
-      loading: false,
-      symptom: result.symptom || '',
-      summary: result.summary || '',
-      symptomAnalysis: result.symptomAnalysis || result.summary || '',
-      commonSigns: result.commonSigns || [],
-      preliminaryConclusion: result.preliminaryConclusion || '',
-      advice: result.advice || '',
+      conclusion: result.preliminaryConclusion || result.summary || '请联系医院导诊台',
+      advice: result.advice || '科室建议仅供导航。',
       urgent: !!result.urgent,
-      source,
-      sourceLabel: source === 'deepseek' ? 'AI 分析' : '智能推荐',
-      departments: enrichDepartments(result.departments || [])
+      helpPhone: result.helpPhone || '',
+      departments: needsStaff ? [] : enrichDepartments(result.departments || [])
     })
   },
 
@@ -70,10 +33,13 @@ Page({
     goDeptTab({ deptId: e.detail.id })
   },
 
+  callHelp() {
+    const phoneNumber = this.data.urgent ? '120' : this.data.helpPhone.replace(/[^0-9+]/g, '')
+    if (phoneNumber) wx.makePhoneCall({ phoneNumber })
+  },
+
   onViewAll() {
     const first = this.data.departments[0]
-    if (first) {
-      goDeptTab({ deptId: first.id })
-    }
+    if (first) goDeptTab({ deptId: first.id })
   }
 })

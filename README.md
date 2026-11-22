@@ -84,6 +84,8 @@ mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=9090
 
 > **IDEA 用户注意**：若之前导入的是 `backend/backend/pom.xml`，请以 `backend/pom.xml` 重新 "Add as Maven Project" 并 Reload Maven / Rebuild，旧路径已不存在。命令行编译通过即可确认源码无问题：`mvn -o clean compile -DskipTests`。
 
+如有医院人工导诊台联系电话，可通过环境变量 TRIAGE_HELP_PHONE 配置。患者在就医导航结果可直接联系导诊台。
+
 ### 3. 启动前端（管理员 / 医生 / 患者统一登录入口）
 
 ```bash

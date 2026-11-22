@@ -1,15 +1,9 @@
 <view class="page page--bottom-bar triage">
-  <page-nav title="AI 智能导诊" />
+  <page-nav title="就医导航" />
   <scroll-view class="triage__scroll" scroll-y>
     <view class="triage__content">
       <ai-hero />
-      <view class="triage__steps">
-        <text class="triage__step triage__step--active">① 描述症状</text>
-        <text class="triage__step-arrow">→</text>
-        <text class="triage__step">② 智能分析</text>
-        <text class="triage__step-arrow">→</text>
-        <text class="triage__step">③ 查看推荐</text>
-      </view>
+      <van-cell title="科室建议仅供导航" label="出现紧急情况，请立即寻求线下急救。" />
       <view class="triage__quick">
         <text class="triage__quick-label">常见症状</text>
         <scroll-view class="triage__quick-scroll" scroll-x enable-flex>
@@ -28,7 +22,7 @@
     </view>
   </scroll-view>
   <bottom-bar
-    text="{{ loading ? '分析中...' : '开始智能分析' }}"
+    text="{{ loading ? '查询中…' : '查找相关科室' }}"
     loading="{{ loading }}"
     bind:confirm="onAnalyze"
   />

@@ -60,15 +60,17 @@
       </el-col>
       <el-col :span="10">
         <div class="panel">
-          <h3 style="margin:0 0 6px;font-size:16px">智能分诊</h3>
-          <p class="page-desc" style="margin-bottom:12px">描述症状，系统按本地规则推荐科室（/api/triage/analyze）</p>
+          <h3 style="margin:0 0 6px;font-size:16px">就医导航</h3>
+          <p class="page-desc" style="margin-bottom:12px">描述症状，查看可能相关的科室。出现紧急情况，请立即寻求线下急救。</p>
           <el-input v-model="symptom" type="textarea" :rows="2" maxlength="200" placeholder="例如：头痛、发热、咳嗽三天" />
           <el-button type="primary" size="small" style="margin-top:10px" :loading="triaging" @click="analyze">推荐科室</el-button>
           <div v-if="triage" class="triage-result">
-            <el-alert :type="triage.urgent ? 'warning' : 'success'" :closable="false" show-icon :title="triage.preliminaryConclusion || triage.summary" />
+            <el-alert :type="triage.urgent || triage.requiresHumanHelp ? 'warning' : 'info'" :closable="false" show-icon :title="triage.preliminaryConclusion || triage.summary" />
             <p style="font-size:13px;color:#5b6577;margin:10px 0 6px">{{ triage.advice }}</p>
             <el-tag v-for="d in triage.departments" :key="d.id" size="small" effect="plain" style="margin:0 6px 6px 0">{{ d.name }}</el-tag>
-            <p class="muted" style="font-size:11px;margin-top:6px">结果来源：{{ triage.source }}</p>
+            <a v-if="triage.urgent" href="tel:120">拨打 120</a>
+            <a v-else-if="triage.helpPhone" :href="'tel:' + triage.helpPhone.replace(/[^0-9+]/g, '')">联系导诊台 {{ triage.helpPhone }}</a>
+            <p v-else-if="triage.requiresHumanHelp" class="muted">可到门诊服务台咨询。</p>
           </div>
         </div>
       </el-col>

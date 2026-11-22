@@ -17,6 +17,8 @@ public class TriageResultVO {
     private String preliminaryConclusion;
     private String advice;
     private boolean urgent;
+    private boolean requiresHumanHelp;
+    private String helpPhone;
     private String source;
     private List<TriageDepartmentVO> departments;
 }

@@ -625,7 +625,7 @@ unpaid --管理员取消--> cancelled
 
 公开接口默认只返回今天及以后、`status = 1` 的排班。`remainQuota = totalQuota - bookedCount`，最小为 `0`。
 
-### 7.5 智能分诊
+### 7.5 就医导航
 
 `POST /api/triage/analyze`
 
@@ -652,11 +652,13 @@ unpaid --管理员取消--> cancelled
   "code": 200,
   "data": {
     "summary": "症状以发热、咳嗽和咽痛为主",
-    "symptomAnalysis": "建议优先排查呼吸道感染",
+    "symptomAnalysis": "以下开放科室与描述中的关键词相关",
     "commonSigns": ["发热", "咳嗽", "咽痛"],
     "preliminaryConclusion": "可优先考虑呼吸内科或感染相关科室",
     "advice": "若持续高热、呼吸困难或意识异常，请立即线下就医",
     "urgent": false,
+    "requiresHumanHelp": false,
+    "helpPhone": "",
     "source": "fallback",
     "departments": [
       {
@@ -682,7 +684,7 @@ unpaid --管理员取消--> cancelled
 | `deepseek` | 外部 AI 分析成功 |
 | `fallback` | 使用本地关键词规则 |
 
-外部 AI 不可用、超时或返回格式错误时必须降级到本地规则，不得导致分诊接口整体不可用。
+当前使用本地关键词规则。未匹配、命中紧急提示词、或涉及儿童、孕期、产后时返回空科室列表，并置 requiresHumanHelp 为 true。导诊台电话通过 TRIAGE_HELP_PHONE 配置。
 
 ## 8. 患者预约接口
 
