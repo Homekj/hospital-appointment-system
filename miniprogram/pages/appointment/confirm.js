@@ -12,6 +12,9 @@ Page({
     scheduleDate: '',
     timeSlot: '',
     scheduleId: 0,
+    profileChoices: [],
+    profileIndex: 0,
+    patientProfileId: null,
     patientName: '',
     patientPhone: '',
     remark: '',
@@ -60,6 +63,34 @@ Page({
     this.loadBalance()
   },
 
+  async onShow() {
+    if (!auth.isLoggedIn()) return
+    try {
+      const profiles = await api.getPatients()
+      const profileChoices = [{ id: null, label: '手动填写' }].concat(profiles.map(p => ({
+        ...p,
+        label: p.name + ' · ' + p.relationship + (p.defaultPatient ? '（默认）' : '')
+      })))
+      const selected = this.profileChosen
+        ? profileChoices.find(p => p.id === this.data.patientProfileId)
+        : profileChoices.find(p => p.defaultPatient)
+      const profile = selected || profileChoices[0]
+      this.setData({ profileChoices, profileIndex: profileChoices.indexOf(profile), patientProfileId: profile.id })
+    } catch (error) {
+      toast(error.message || '常用就诊人加载失败，可手动填写')
+    }
+  },
+
+  onProfileChange(e) {
+    const profileIndex = Number(e.detail.value)
+    this.profileChosen = true
+    this.setData({ profileIndex, patientProfileId: this.data.profileChoices[profileIndex].id })
+  },
+
+  managePatients() {
+    wx.navigateTo({ url: '/pages/mine/patients/patients' })
+  },
+
   async loadBalance() {
     if (!auth.isLoggedIn()) return
     try {
@@ -76,10 +107,12 @@ Page({
   },
 
   onPatientNameInput(e) {
+    this.profileChosen = true
     this.setData({ patientName: e.detail })
   },
 
   onPatientPhoneInput(e) {
+    this.profileChosen = true
     this.setData({ patientPhone: e.detail })
   },
 
@@ -91,11 +124,6 @@ Page({
     const { id } = e.currentTarget.dataset
     if (!id) return
     this.setData({ payMethod: id })
-    if (needsPayDrawer(id)) {
-      this.setData({ payDrawerVisible: true, payDrawerMethod: id })
-    } else {
-      this.setData({ payDrawerVisible: false })
-    }
   },
 
   onPayDrawerClose() {
@@ -118,9 +146,10 @@ Page({
 
   async doSubmit() {
     if (this.data.submitting) return
-    const { scheduleId, patientName, patientPhone, remark, payMethod, feeAmount, balance } = this.data
-    if (!patientName || !patientPhone) {
-      toast('请填写就诊人信息')
+    const { scheduleId, patientProfileId, patientName, patientPhone, remark, payMethod, feeAmount, balance } = this.data
+    if (!scheduleId) { toast('请重新选择预约时段'); return }
+    if (!patientProfileId && (!patientName.trim() || !/^1[3-9]\d{9}$/.test(patientPhone))) {
+      toast('请填写姓名和有效手机号')
       return
     }
     if (!auth.isLoggedIn()) {
@@ -133,25 +162,34 @@ Page({
       return
     }
     this.setData({ submitting: true })
+    let appt
     try {
+      const patient = patientProfileId ? { patientProfileId } : { patientName: patientName.trim(), patientPhone }
+      appt = await api.createAppointment({ scheduleId, ...patient, remark })
       await mockChannelPay(payMethod)
-      const appt = await api.createAppointment({
-        scheduleId,
-        patientName,
-        patientPhone,
-        remark
-      })
       await api.payAppointment(appt.id, payMethod)
-      await auth.fetchMe()
+      auth.fetchMe().catch(() => {})
       this.setData({ payDrawerVisible: false })
       wx.showToast({ title: '支付成功', icon: 'success' })
-      setTimeout(() => {
-        wx.redirectTo({ url: `/pages/order/detail?id=${appt.id}` })
-      }, 800)
+      this.openOrder(appt.id)
     } catch (err) {
-      toast(err.message || '预约失败')
+      if (appt) {
+        this.setData({ payDrawerVisible: false })
+        wx.showModal({
+          title: '请查看预约订单',
+          content: (err.message || '支付未完成') + '。订单已创建，可在订单详情中查看状态或继续支付。',
+          showCancel: false,
+          success: () => this.openOrder(appt.id)
+        })
+      } else {
+        toast(err.message || '预约失败，可在订单页查看是否已生成预约')
+      }
     } finally {
       this.setData({ submitting: false })
     }
+  },
+
+  openOrder(id) {
+    wx.redirectTo({ url: '/pages/order/detail?id=' + id })
   }
 })

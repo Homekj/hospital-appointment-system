@@ -46,6 +46,7 @@ public class AppointmentService {
     private final WalletUserDao walletUserDao;
     private final BalanceLogDao balanceLogDao;
     private final UserNotificationDao notificationDao;
+    private final PatientProfileService patientProfiles;
 
     /** 是否强制「就诊当天才能签到」；联调时可在 application.properties 配 false 放宽。 */
     @Value("${patient.check-in.same-day-only:true}")
@@ -55,12 +56,13 @@ public class AppointmentService {
                               ScheduleDao scheduleDao,
                               WalletUserDao walletUserDao,
                               BalanceLogDao balanceLogDao,
-                              UserNotificationDao notificationDao) {
+                              UserNotificationDao notificationDao, PatientProfileService patientProfiles) {
         this.appointmentDao = appointmentDao;
         this.scheduleDao = scheduleDao;
         this.walletUserDao = walletUserDao;
         this.balanceLogDao = balanceLogDao;
         this.notificationDao = notificationDao;
+        this.patientProfiles = patientProfiles;
     }
 
     // ------------------------------------------------------------------ 查询
@@ -114,8 +116,12 @@ public class AppointmentService {
         if (schedule.getScheduleDate() == null || schedule.getScheduleDate().isBefore(LocalDate.now())) {
             throw new BusinessException(BusinessErrorCode.BAD_REQUEST, "该排班日期已过，无法预约");
         }
-        if (appointmentDao.countActiveBySchedule(userId, request.scheduleId()) > 0) {
-            throw new BusinessException(BusinessErrorCode.CONFLICT, "您已预约该时段，请勿重复提交");
+        Long profileId = request.patientProfileId();
+        PatientProfileService.Profile profile = profileId == null ? null : patientProfiles.require(userId, profileId);
+        String name = profile == null ? request.patientName().strip() : profile.name();
+        String phone = profile == null ? request.patientPhone() : profile.phone();
+        if (appointmentDao.countActiveBySchedule(userId, request.scheduleId(), profileId, name, phone) > 0) {
+            throw new BusinessException(BusinessErrorCode.CONFLICT, "该就诊人已预约此时段，请在我的预约中查看");
         }
 
         // 关键：一条带条件的原子 UPDATE；影响行数 0 说明号源已满或排班被停用
@@ -128,8 +134,9 @@ public class AppointmentService {
         Appointment entity = new Appointment();
         entity.setUid(userId);
         entity.setScId(request.scheduleId());
-        entity.setPatientName(request.patientName());
-        entity.setPatientPhone(request.patientPhone());
+        entity.setPatientProfileId(profileId);
+        entity.setPatientName(name);
+        entity.setPatientPhone(phone);
         entity.setIdCard(request.idCard());
         entity.setRemark(request.remark());
         entity.setAmount(REGISTRATION_FEE.doubleValue());

@@ -19,6 +19,19 @@ function getSchedules(params = {}) {
   return request({ url: '/api/schedules', data: params })
 }
 
+function getPatients() {
+  return request({ url: '/api/appointments/patients' })
+}
+
+function savePatient({ id, ...data }) {
+  const url = id ? '/api/appointments/patients/' + id : '/api/appointments/patients'
+  return request({ url, method: id ? 'PUT' : 'POST', data })
+}
+
+function removePatient(id) {
+  return request({ url: '/api/appointments/patients/' + id, method: 'DELETE' })
+}
+
 function getAppointments(params = {}) {
   const query = { ...params }
   if (!query.status || query.status === 'all') {
@@ -96,6 +109,9 @@ module.exports = {
   getDoctors,
   getDoctorById,
   getSchedules,
+  getPatients,
+  savePatient,
+  removePatient,
   getAppointments,
   getAppointmentById,
   createAppointment,

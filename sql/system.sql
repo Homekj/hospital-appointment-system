@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS prescription;
 DROP TABLE IF EXISTS consultation_record;
 DROP TABLE IF EXISTS medicine;
 DROP TABLE IF EXISTS appointment;
+DROP TABLE IF EXISTS patient_profile;
 DROP TABLE IF EXISTS appointment_review;
 DROP TABLE IF EXISTS schedule;
 DROP TABLE IF EXISTS doctor;
@@ -170,10 +171,22 @@ CREATE TABLE user_notification (
     KEY idx_notify_user (user_id, read_flag, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息通知';
 
+CREATE TABLE IF NOT EXISTS patient_profile (
+    id            BIGINT      NOT NULL AUTO_INCREMENT,
+    user_id       BIGINT      NOT NULL,
+    name          VARCHAR(50) NOT NULL,
+    phone         VARCHAR(20) NOT NULL,
+    relationship  VARCHAR(12) NOT NULL,
+    is_default    BOOLEAN     NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_patient_profile (user_id, name, phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='常用就诊人';
+
 CREATE TABLE appointment (
     id            BIGINT      NOT NULL AUTO_INCREMENT,
     user_id       BIGINT      NOT NULL COMMENT '预约用户',
     schedule_id   BIGINT      NOT NULL COMMENT '关联排班',
+    patient_profile_id BIGINT DEFAULT NULL COMMENT '常用就诊人引用，历史以预约快照为准',
     patient_name  VARCHAR(50) NOT NULL COMMENT '就诊人姓名',
     patient_phone VARCHAR(20) NOT NULL COMMENT '就诊人手机',
     id_card       VARCHAR(30) DEFAULT NULL COMMENT '身份证号',

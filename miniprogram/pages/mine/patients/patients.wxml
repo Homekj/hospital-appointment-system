@@ -1,0 +1,27 @@
+<view class="page">
+  <page-nav title="常用就诊人" />
+  <view class="section">
+    <van-cell wx:if="{{ error }}" title="{{ error }}" value="重试" is-link bind:click="load" />
+    <view class="card" wx:for="{{ profiles }}" wx:key="id">
+      <van-cell title="{{ item.name }} · {{ item.relationship }}" label="{{ item.phone }}"
+        value="{{ item.defaultPatient ? '默认' : '' }}" />
+      <view class="actions">
+        <van-button size="small" data-id="{{ item.id }}" bind:click="edit" disabled="{{ busy }}">编辑</van-button>
+        <van-button size="small" data-id="{{ item.id }}" bind:click="remove" disabled="{{ busy }}">删除</van-button>
+      </view>
+    </view>
+    <view class="card">
+      <van-cell title="{{ form.id ? '编辑就诊人' : '添加就诊人' }}" />
+      <van-field label="姓名" value="{{ form.name }}" maxlength="50" bind:change="changeName" />
+      <van-field label="联系电话" value="{{ form.phone }}" type="number" maxlength="11" bind:change="changePhone" />
+      <picker range="{{ relationships }}" value="{{ relationIndex }}" bindchange="changeRelationship">
+        <van-cell title="关系" value="{{ form.relationship }}" is-link />
+      </picker>
+      <view class="default-row"><text>设为默认就诊人</text><switch checked="{{ form.defaultPatient }}" bindchange="changeDefault" /></view>
+      <view class="actions">
+        <van-button wx:if="{{ form.id }}" size="small" bind:click="reset" disabled="{{ busy }}">取消编辑</van-button>
+        <van-button size="small" type="primary" loading="{{ busy }}" bind:click="save">保存就诊人</van-button>
+      </view>
+    </view>
+  </view>
+</view>

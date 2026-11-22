@@ -1,6 +1,7 @@
 package com.aaa.backend.appointment.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.AssertTrue;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
@@ -12,11 +13,9 @@ public record CreateAppointmentRequest(
         @Positive(message = "scheduleId 必须为正数")
         Long scheduleId,
 
-        @NotBlank(message = "patientName 不能为空")
         @Size(max = 50, message = "patientName 不能超过 50 个字符")
         String patientName,
 
-        @NotBlank(message = "patientPhone 不能为空")
         @Size(max = 20, message = "patientPhone 不能超过 20 个字符")
         @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
         String patientPhone,
@@ -25,6 +24,17 @@ public record CreateAppointmentRequest(
         String idCard,
 
         @Size(max = 200, message = "remark 不能超过 200 个字符")
-        String remark
+        String remark,
+
+        @Positive Long patientProfileId
 ) {
+    public CreateAppointmentRequest(Long scheduleId, String patientName, String patientPhone, String idCard, String remark) {
+        this(scheduleId, patientName, patientPhone, idCard, remark, null);
+    }
+
+    @JsonIgnore
+    @AssertTrue(message = "请选择常用就诊人，或填写姓名和联系电话")
+    public boolean isPatientSpecified() {
+        return patientProfileId != null || (patientName != null && !patientName.isBlank() && patientPhone != null);
+    }
 }

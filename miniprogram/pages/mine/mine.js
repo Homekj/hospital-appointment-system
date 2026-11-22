@@ -18,6 +18,7 @@ Page({
     profileSyncing: false,
     unreadCount: 0,
     menuItems: [
+      { icon: 'friends-o', title: '常用就诊人', url: '/pages/mine/patients/patients', login: true },
       { icon: 'bell', title: '消息通知', url: '/pages/mine/notifications/notifications', badge: true },
       { icon: 'balance-o', title: '余额充值', url: '/pages/recharge/recharge' },
       { icon: 'orders-o', title: '我的订单', url: '/pages/order/list', tab: true },
@@ -157,6 +158,10 @@ Page({
 
   onMenuTap(e) {
     const { item } = e.currentTarget.dataset
+    if (item.login && !auth.isLoggedIn()) {
+      wx.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
     if (item.tab) {
       wx.switchTab({ url: item.url })
     } else {

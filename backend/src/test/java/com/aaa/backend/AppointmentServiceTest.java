@@ -3,6 +3,7 @@ package com.aaa.backend;
 import com.aaa.backend.appointment.dao.AppointmentDao;
 import com.aaa.backend.appointment.dto.CreateAppointmentRequest;
 import com.aaa.backend.appointment.service.AppointmentService;
+import com.aaa.backend.appointment.service.PatientProfileService;
 import com.aaa.backend.appointment.vo.AppointmentDetailVO;
 import com.aaa.backend.catalog.dao.ScheduleDao;
 import com.aaa.backend.common.BusinessException;
@@ -31,13 +32,13 @@ class AppointmentServiceTest {
     private final UserNotificationDao notificationDao = mock(UserNotificationDao.class);
     private final AppointmentService service = new AppointmentService(
             appointmentDao, scheduleDao, mock(WalletUserDao.class),
-            mock(BalanceLogDao.class), notificationDao);
+            mock(BalanceLogDao.class), notificationDao, mock(PatientProfileService.class));
 
     @Test
     void createLocksScheduleBeforeCheckingDuplicateAndTakingQuota() {
         Schedule schedule = activeSchedule();
         when(scheduleDao.selectByIdForUpdate(12L)).thenReturn(schedule);
-        when(appointmentDao.countActiveBySchedule(7L, 12L)).thenReturn(0L);
+        when(appointmentDao.countActiveBySchedule(7L, 12L, null, "患者", "13800138000")).thenReturn(0L);
         when(scheduleDao.increaseBookedCount(12L)).thenReturn(1);
         doAnswer(invocation -> {
             com.aaa.backend.entity.Appointment appointment = invocation.getArgument(0);
@@ -56,7 +57,7 @@ class AppointmentServiceTest {
         assertEquals(99L, result.getId());
         InOrder order = inOrder(scheduleDao, appointmentDao);
         order.verify(scheduleDao).selectByIdForUpdate(12L);
-        order.verify(appointmentDao).countActiveBySchedule(7L, 12L);
+        order.verify(appointmentDao).countActiveBySchedule(7L, 12L, null, "患者", "13800138000");
         order.verify(scheduleDao).increaseBookedCount(12L);
         order.verify(appointmentDao).insert(any(com.aaa.backend.entity.Appointment.class));
     }
@@ -64,7 +65,7 @@ class AppointmentServiceTest {
     @Test
     void duplicateBookingDoesNotConsumeAnotherQuota() {
         when(scheduleDao.selectByIdForUpdate(12L)).thenReturn(activeSchedule());
-        when(appointmentDao.countActiveBySchedule(7L, 12L)).thenReturn(1L);
+        when(appointmentDao.countActiveBySchedule(7L, 12L, null, "患者", "13800138000")).thenReturn(1L);
 
         assertThrows(BusinessException.class, () -> service.create(7L, request()));
 

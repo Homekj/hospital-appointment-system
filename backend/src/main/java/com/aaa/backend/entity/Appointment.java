@@ -39,6 +39,8 @@ public class Appointment {
     @TableField("schedule_id")
     private Long scId;
 
+    private Long patientProfileId;
+
     @TableField("patient_name")
     private String patientName;
 

@@ -11,6 +11,7 @@
     "pages/order/evaluate",
     "pages/recharge/recharge",
     "pages/mine/mine",
+    "pages/mine/patients/patients",
     "pages/mine/notifications/notifications",
     "pages/mine/about/about",
     "pages/mine/agreement/agreement",

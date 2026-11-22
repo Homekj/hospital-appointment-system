@@ -813,6 +813,13 @@ WHERE id = ?
 - 同一用户对同一 `scheduleId` 已存在 `unpaid`、`pending`、`checked_in` 或 `in_consultation` 预约时，默认拒绝重复创建并返回 `409`。
 - 如接入 `Idempotency-Key` 请求头，同一用户同一键的重复请求应返回首次创建结果。
 
+### 8.3.1 常用就诊人
+
+- GET/POST /api/appointments/patients 查询或新增，PUT/DELETE /api/appointments/patients/{id} 更新或删除。响应均为当前账号的就诊人列表。
+- 保存字段：name、phone、relationship（本人、父母、子女、配偶或其他）、defaultPatient。
+- 创建预约可提供 patientProfileId 代替 patientName 和 patientPhone。后端校验归属并保存姓名、电话快照，删除或编辑常用就诊人不影响历史预约。
+- 同一账号可为不同就诊人预约同一排班，同一就诊人的未取消预约返回 409。历史手填记录按姓名和联系电话匹配。
+
 ### 8.4 支付挂号费
 
 `POST /api/appointments/{id}/pay`

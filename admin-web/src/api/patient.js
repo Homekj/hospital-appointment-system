@@ -11,6 +11,12 @@ export const patientApi = {
   schedules: params => request.get('/schedules', { params }),
   triage: symptom => request.post('/triage/analyze', { symptom }),
 
+  patients: () => request.get('/appointments/patients'),
+  savePatient: ({ id, ...data }) => id
+    ? request.put('/appointments/patients/' + id, data)
+    : request.post('/appointments/patients', data),
+  removePatient: id => request.delete('/appointments/patients/' + id),
+
   // 预约
   appointments: params => request.get('/appointments', { params }),
   appointmentDetail: id => request.get(`/appointments/${id}`),

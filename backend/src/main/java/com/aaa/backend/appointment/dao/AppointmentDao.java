@@ -86,14 +86,18 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
                      @Param("statuses") List<String> statuses,
                      @Param("pendingDispense") boolean pendingDispense);
 
-    /** 同一用户对同一排班的「活跃」预约；confirmed 是历史别名，等同 pending。 */
+    /** 同一账号下的同一就诊人不可占用同一排班的多个号源。 */
     @Select("""
             SELECT COUNT(*) FROM appointment
              WHERE user_id = #{userId}
                AND schedule_id = #{scheduleId}
-               AND status IN ('unpaid', 'pending', 'confirmed', 'checked_in', 'in_consultation')
+               AND status <> 'cancelled'
+               AND (patient_profile_id = #{profileId}
+                    OR (patient_name = #{name} AND patient_phone = #{phone}))
             """)
-    long countActiveBySchedule(@Param("userId") Long userId, @Param("scheduleId") Long scheduleId);
+    long countActiveBySchedule(@Param("userId") Long userId, @Param("scheduleId") Long scheduleId,
+                               @Param("profileId") Long profileId, @Param("name") String name,
+                               @Param("phone") String phone);
 
     /** 支付：仅 unpaid 可流转，user_id 保证不能替别人付款。 */
     @Update("""

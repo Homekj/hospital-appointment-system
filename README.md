@@ -65,6 +65,8 @@ Hospital-Appointment-Management2/
 mysql -u root -p --default-character-set=utf8mb4 < sql/system.sql
 ```
 
+已有数据库请先备份，再在 hospital_booking 库中按编号执行 sql/migrations/ 下尚未应用的增量脚本。新装直接使用 sql/system.sql。
+
 数据库连接信息在 `backend/src/main/resources/application.properties`，请按本机环境调整（用户名、密码、地址、Redis），不要把新密钥提交到仓库。
 
 ### 2. 启动后端
