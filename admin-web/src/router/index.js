@@ -15,6 +15,7 @@ const adminChildren = [
   { path: '/admin/doctors', name: 'Doctors', component: () => import('@/views/doctors/index.vue'), meta: { title: '医生管理', icon: 'el-icon-user', roles: ADMIN } },
   { path: '/admin/schedules', name: 'Schedules', component: () => import('@/views/schedules/index.vue'), meta: { title: '排班管理', icon: 'el-icon-date', roles: ADMIN } },
   { path: '/admin/appointments', name: 'Appointments', component: () => import('@/views/appointments/index.vue'), meta: { title: '预约管理', icon: 'el-icon-tickets', roles: ADMIN } },
+  { path: '/admin/prescriptions', name: 'AdminPrescriptions', component: () => import('@/views/prescriptions/index.vue'), meta: { title: '处方与发药', icon: 'el-icon-first-aid-kit', roles: ADMIN } },
   { path: '/admin/medicines', name: 'Medicines', component: () => import('@/views/medicines/index.vue'), meta: { title: '药品管理', icon: 'el-icon-first-aid-kit', roles: ADMIN } },
   { path: '/admin/users', name: 'Users', component: () => import('@/views/users/index.vue'), meta: { title: '用户管理', icon: 'el-icon-user-solid', roles: ADMIN } },
   { path: '/admin/logs', name: 'Logs', component: () => import('@/views/logs/index.vue'), meta: { title: '系统日志', icon: 'el-icon-document', roles: ADMIN } },

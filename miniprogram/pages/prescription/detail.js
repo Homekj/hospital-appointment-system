@@ -10,14 +10,13 @@ Page({
     items: [],
     amountText: '',
     canPay: false,
-    canPickup: false,
+    statusText: '',
     balance: '0.00',
     payMethods: PAY_METHODS,
     payMethod: 'wechat',
     payDrawerVisible: false,
     payDrawerMethod: 'wechat',
-    paying: false,
-    pickuping: false
+    paying: false
   },
 
   onLoad(options) {
@@ -57,9 +56,8 @@ Page({
           prescription: rx,
           items: list,
           amountText: formatFee(rx.totalAmount),
-          statusText: ({ unpaid: '待支付', paid: '待取药', dispensed: '已取药', cancelled: '已取消' })[rx.status] || rx.status,
-          canPay: rx.status === 'unpaid',
-          canPickup: rx.status === 'paid'
+          statusText: rx.refundTime ? '已退费' : ({ unpaid: '待支付', paid: '待取药', dispensed: '已取药', cancelled: '已取消' })[rx.status] || rx.status,
+          canPay: rx.status === 'unpaid'
         })
       })
       .catch((err) => toast(err.message || '加载失败'))
@@ -105,7 +103,7 @@ Page({
       await api.payPrescription(prescription.id, payMethod)
       await auth.fetchMe()
       this.setData({ payDrawerVisible: false })
-      wx.showToast({ title: '支付成功，请完成取药确认', icon: 'success' })
+      wx.showToast({ title: '支付成功，请前往药房', icon: 'success' })
       this.loadData()
       this.loadBalance()
     } catch (err) {
@@ -115,27 +113,8 @@ Page({
     }
   },
 
-  onPickup() {
-    if (!this.data.canPickup || this.data.pickuping || !this.data.prescription) return
-    wx.showModal({
-      title: '确认取药',
-      content: '请确认你已从药房领取处方中的药品。确认后，本次就诊将标记为已完成。',
-      success: (result) => { if (result.confirm) this.doPickup() }
-    })
-  },
-
-  async doPickup() {
-    const prescription = this.data.prescription
-    if (!prescription || this.data.pickuping) return
-    this.setData({ pickuping: true })
-    try {
-      await api.pickupPrescription(prescription.id)
-      wx.showToast({ title: '取药已确认', icon: 'success' })
-      await this.loadData()
-    } catch (err) {
-      toast(err.message || '取药确认失败')
-    } finally {
-      this.setData({ pickuping: false })
-    }
+  refresh() {
+    this.loadData()
+    this.loadBalance()
   }
 })

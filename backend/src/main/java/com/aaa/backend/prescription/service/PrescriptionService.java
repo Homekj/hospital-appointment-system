@@ -2,15 +2,12 @@ package com.aaa.backend.prescription.service;
 
 import com.aaa.backend.common.BusinessErrorCode;
 import com.aaa.backend.common.BusinessException;
-import com.aaa.backend.contract.appointment.AppointmentCommandService;
-import com.aaa.backend.doctor.dao.MedicineDao;
 import com.aaa.backend.entity.BalanceLog;
 import com.aaa.backend.entity.UserNotification;
 import com.aaa.backend.notification.dao.UserNotificationDao;
 import com.aaa.backend.prescription.dao.PrescriptionDao;
 import com.aaa.backend.prescription.dao.PrescriptionItemDao;
 import com.aaa.backend.prescription.vo.PrescriptionDetailVO;
-import com.aaa.backend.prescription.vo.PrescriptionItemVO;
 import com.aaa.backend.wallet.dao.BalanceLogDao;
 import com.aaa.backend.wallet.dao.WalletUserDao;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 /**
  * 患者处方业务（docs/api.md 9）。
@@ -35,23 +31,17 @@ public class PrescriptionService {
     private final WalletUserDao walletUserDao;
     private final BalanceLogDao balanceLogDao;
     private final UserNotificationDao notificationDao;
-    private final MedicineDao medicineDao;
-    private final AppointmentCommandService appointmentCommandService;
 
     public PrescriptionService(PrescriptionDao prescriptionDao,
                                PrescriptionItemDao prescriptionItemDao,
                                WalletUserDao walletUserDao,
                                BalanceLogDao balanceLogDao,
-                               UserNotificationDao notificationDao,
-                               MedicineDao medicineDao,
-                               AppointmentCommandService appointmentCommandService) {
+                               UserNotificationDao notificationDao) {
         this.prescriptionDao = prescriptionDao;
         this.prescriptionItemDao = prescriptionItemDao;
         this.walletUserDao = walletUserDao;
         this.balanceLogDao = balanceLogDao;
         this.notificationDao = notificationDao;
-        this.medicineDao = medicineDao;
-        this.appointmentCommandService = appointmentCommandService;
     }
 
     /** 按预约查处方：SQL 已带 user_id，天然完成归属校验。 */
@@ -73,9 +63,12 @@ public class PrescriptionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PrescriptionDetailVO pay(Long userId, Long prescriptionId, String payMethod) {
+        if (prescriptionDao.lockOwnedId(prescriptionId, userId) == null) {
+            throw new BusinessException(BusinessErrorCode.NOT_FOUND, "暂无处方");
+        }
         PrescriptionDetailVO current = requireOwned(userId, prescriptionId);
         if (!"unpaid".equals(current.getStatus())) {
-            if (payMethod.equals(current.getPayMethod())) {
+            if (isAlreadyPaid(current, payMethod)) {
                 return decorate(current); // 幂等
             }
             throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE,
@@ -85,7 +78,7 @@ public class PrescriptionService {
         int rows = prescriptionDao.markPaid(prescriptionId, userId, payMethod);
         if (rows == 0) {
             PrescriptionDetailVO refreshed = requireOwned(userId, prescriptionId);
-            if (!"unpaid".equals(refreshed.getStatus()) && payMethod.equals(refreshed.getPayMethod())) {
+            if (isAlreadyPaid(refreshed, payMethod)) {
                 return decorate(refreshed);
             }
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT);
@@ -113,57 +106,22 @@ public class PrescriptionService {
         return decorate(requireOwned(userId, prescriptionId));
     }
 
-    /** Patient pickup is the final state transition shared by Web and mini-program clients. */
-    @Transactional(rollbackFor = Exception.class)
+    /** 已发药的旧客户端可继续查询确认结果，发药动作由药房后台执行。 */
     public PrescriptionDetailVO pickup(Long userId, Long prescriptionId) {
         PrescriptionDetailVO prescription = requireOwned(userId, prescriptionId);
-        if (prescription == null) {
-            throw new BusinessException(BusinessErrorCode.NOT_FOUND, "暂无处方");
-        }
-        if ("dispensed".equals(prescription.getStatus())) {
-            return decorate(prescription);
-        }
-        if (!"paid".equals(prescription.getStatus())) {
+        if (!"dispensed".equals(prescription.getStatus())) {
             throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE,
-                    "仅已支付处方可以确认取药");
+                    "请到药房取药，由工作人员确认发药");
         }
-
-        List<PrescriptionItemVO> items = prescriptionItemDao.selectByPrescription(prescriptionId);
-        if (items == null || items.isEmpty()) {
-            throw new BusinessException(BusinessErrorCode.CONFLICT, "处方没有药品明细，不能取药");
-        }
-        List<Long> medicineIds = items.stream().map(PrescriptionItemVO::getMedicineId)
-                .filter(java.util.Objects::nonNull).distinct().sorted().toList();
-        for (Long medicineId : medicineIds) {
-            if (medicineDao.lockById(medicineId) == null) {
-                throw new BusinessException(BusinessErrorCode.CONFLICT, "处方药品已不存在，暂时无法完成取药");
-            }
-        }
-        // Lock the prescription after medicine rows, matching the doctor-side lock order.
-        prescription = prescriptionDao.lockOwnedForUpdate(prescriptionId, userId);
-        if (prescription == null) {
-            throw new BusinessException(BusinessErrorCode.NOT_FOUND, "暂无处方");
-        }
-        if ("dispensed".equals(prescription.getStatus())) return decorate(prescription);
-        if (!"paid".equals(prescription.getStatus())) {
-            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE,
-                    "仅已支付处方可以确认取药");
-        }
-        for (PrescriptionItemVO item : items) {
-            if (item.getMedicineId() == null || item.getQuantity() == null || item.getQuantity() <= 0
-                    || medicineDao.deductStock(item.getMedicineId(), item.getQuantity()) == 0) {
-                throw new BusinessException(BusinessErrorCode.CONFLICT, "药品库存不足或药品已不存在，暂时无法完成取药");
-            }
-        }
-        if (prescriptionDao.markDispensed(prescriptionId, userId) != 1) {
-            throw new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT,
-                    "处方状态已变化，请刷新后重试");
-        }
-        appointmentCommandService.completeAfterPrescriptionDispense(prescription.getAppointmentId());
-        return decorate(requireOwned(userId, prescriptionId));
+        return decorate(prescription);
     }
 
     // ------------------------------------------------------------------ 私有辅助
+
+    private static boolean isAlreadyPaid(PrescriptionDetailVO detail, String payMethod) {
+        return ("paid".equals(detail.getStatus()) || "dispensed".equals(detail.getStatus()))
+                && payMethod.equals(detail.getPayMethod());
+    }
 
     private PrescriptionDetailVO requireOwned(Long userId, Long prescriptionId) {
         PrescriptionDetailVO vo = prescriptionDao.selectOwned(prescriptionId, userId);

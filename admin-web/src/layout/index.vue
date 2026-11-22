@@ -75,6 +75,7 @@ const MENUS = {
     { name: '医生管理', path: '/admin/doctors', icon: 'Avatar' },
     { name: '排班管理', path: '/admin/schedules', icon: 'Calendar' },
     { name: '预约管理', path: '/admin/appointments', icon: 'Tickets' },
+    { name: '处方与发药', path: '/admin/prescriptions', icon: 'FirstAidKit' },
     { name: '药品管理', path: '/admin/medicines', icon: 'FirstAidKit' },
     { name: '用户管理', path: '/admin/users', icon: 'User' },
     { name: '系统日志', path: '/admin/logs', icon: 'Document' },

@@ -13,11 +13,19 @@ public interface AdminPrescriptionDao {
     @Select("SELECT id FROM prescription WHERE id = #{id} FOR UPDATE")
     Long lockForUpdate(@Param("id") Long id);
 
+    @Update("""
+            UPDATE prescription SET status = 'cancelled', refund_reason = #{reason},
+                   refund_time = NOW(), refund_operator_id = #{operatorId}
+             WHERE id = #{id} AND status = 'paid'
+            """)
+    int refundPaid(@Param("id") Long id, @Param("reason") String reason, @Param("operatorId") Long operatorId);
+
     String DETAIL_COLUMNS = """
             SELECT p.id, p.appointment_id AS appointmentId, p.user_id AS userId,
                    p.doctor_id AS doctorId, doc.name AS doctorName,
                    dep.name AS departmentName, p.total_amount AS totalAmount,
                    p.status, p.pay_method AS payMethod, p.pay_time AS payTime,
+                   p.refund_reason AS refundReason, p.refund_time AS refundTime,
                    p.create_time AS createTime, p.update_time AS updateTime
               FROM prescription p
               LEFT JOIN doctor doc ON doc.id = p.doctor_id

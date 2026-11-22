@@ -229,18 +229,19 @@ pending --用户或管理员取消--> cancelled
 | 状态 | 含义 | 允许操作 |
 |---|---|---|
 | `unpaid` | 待支付 | 患者支付、管理员取消 |
-| `paid` | 已支付，待取药 | 患者确认取药或管理员发药 |
+| `paid` | 已支付，待取药 | 管理员发药或退费 |
 | `dispensed` | 已取药/已发药 | 只读 |
 | `cancelled` | 已取消 | 只读 |
 
 处方流转：
 
 ```text
-unpaid --患者支付--> paid --患者确认取药或管理员发药--> dispensed
+unpaid --患者支付--> paid --管理员发药--> dispensed
+paid --管理员退费--> cancelled
 unpaid --管理员取消--> cancelled
 ```
 
-处方支付后，预约仍保持 `pending_rx_pay`；患者确认取药或管理员发药成功后，将处方更新为 `dispensed`，同时将预约更新为 `completed`。`unpaid` 和 `paid` 处方会占用可开库存；取药/发药时扣减实物库存，取消未支付处方时释放占用。
+处方支付后，预约仍处于处方处理阶段。管理员发药或退费后，预约更新为已完成。待付及待发药处方占用可开库存，发药扣减实物库存，取消处方释放占用。
 
 ### 5.3 其他枚举
 
@@ -278,7 +279,9 @@ unpaid --管理员取消--> cancelled
 | 值 | 含义 |
 |---|---|
 | `recharge` | 充值 |
-| `order_pay` | 预约或处方支付 |
+| `order_pay` | 预约支付 |
+| `prescription_pay` | 处方支付 |
+| `prescription_refund` | 处方退费至余额 |
 | `order_refund` | 预约退款 |
 
 ## 6. 认证接口
@@ -1026,11 +1029,11 @@ WHERE id = ?
 
 成功响应 `data` 为支付后的处方对象。
 
-### 9.4 确认取药
+### 9.4 旧客户端查询取药确认结果
 
 `PUT /api/prescriptions/{id}/pickup`
 
-权限：`USER`，且处方属于当前用户。仅 `paid` 处方可确认；成功后处方变为 `dispensed`，关联预约变为 `completed`。Web 患者中心、小程序与管理员发药共享同一处方和预约状态，重复确认幂等返回已取药处方。
+权限：USER，且处方属于当前用户。已发药时返回当前处方，其他状态请到药房由工作人员处理。患者可通过处方详情接口查询发药或退费结果。
 
 ### 9.5 患者修改网页登录密码
 
@@ -1346,6 +1349,8 @@ WHERE id = ?
 | `GET` | `/api/admin/prescriptions/{id}` | 处方详情 |
 | `PUT` | `/api/admin/prescriptions/{id}/dispense` | 确认发药 |
 | `PUT` | `/api/admin/prescriptions/{id}/cancel` | 取消未支付处方 |
+
+退费接口：PUT /api/admin/prescriptions/{id}/refund，提交 reason（1 至 200 字符）。仅已支付且未发药的处方可退费。余额原路退回并写入流水，微信和支付宝登记模拟退款。处方取消、释放可开库存占用、完成就诊，并记录退费时间、原因和操作人。重复请求返回已退费处方。
 
 发药规则：
 
@@ -1885,7 +1890,7 @@ Redis 不可作为号源是否售出的唯一依据。Redis 不可用时，登�
 7. 医生开始接诊后变为 `in_consultation`。
 8. 医生保存病历并开方后变为 `pending_rx_pay`。
 9. 患者支付处方后处方变为 `paid`，小程序展示“待取药”。
-10. 患者可在 Web 或小程序确认取药，也可由管理员发药；处方变为 `dispensed`，预约同步变为 `completed`。
+10. 患者在药房出示处方编号，由管理员核对并发药；处方变为 `dispensed`，预约同步变为 `completed`。
 11. 患者查看病历和处方并提交一次评价。
 
 ### 19.2 并发与异常

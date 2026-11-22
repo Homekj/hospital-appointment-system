@@ -20,6 +20,10 @@ public class PrescriptionDetailVO {
     private String status;
     private String payMethod;
     private String payMethodText;
+    private String refundReason;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime refundTime;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime payTime;

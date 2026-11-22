@@ -225,7 +225,7 @@ export default {
       if (this.profileBusy) return
       const { name, phone } = this.profileForm
       if (!name || !/^1[3-9]\d{9}$/.test(phone)) {
-        this.$message.warning('\u8bf7\u586b\u5199\u59d3\u540d\u548c\u6709\u6548\u7684 11 \u4f4d\u624b\u673a\u53f7')
+        this.$message.warning('请填写姓名和有效的 11 位手机号')
         return
       }
       this.profileBusy = true
@@ -236,14 +236,14 @@ export default {
         this.editProfile()
         this.profilesVisible = false
       } catch (error) {
-        // \u901a\u7528\u8bf7\u6c42\u62e6\u622a\u5668\u5c55\u793a\u9519\u8bef\u3002
+        // 通用请求拦截器展示错误。
       } finally {
         this.profileBusy = false
       }
     },
     async removeProfile(row) {
       try {
-        await this.$confirm('\u5220\u9664\u540e\uff0c\u5df2\u751f\u6210\u7684\u9884\u7ea6\u4f1a\u4fdd\u7559\u539f\u6709\u5c31\u8bca\u4fe1\u606f\u3002', '\u5220\u9664\u5e38\u7528\u5c31\u8bca\u4eba')
+        await this.$confirm('删除后，已生成的预约会保留原有就诊信息。', '删除常用就诊人')
       } catch (error) {
         return
       }
@@ -253,7 +253,7 @@ export default {
         this.updateProfiles(await patientApi.removePatient(row.id))
         if (this.profileForm.id === row.id) this.editProfile()
       } catch (error) {
-        // \u901a\u7528\u8bf7\u6c42\u62e6\u622a\u5668\u5c55\u793a\u9519\u8bef\u3002
+        // 通用请求拦截器展示错误。
       } finally {
         this.profileBusy = false
       }

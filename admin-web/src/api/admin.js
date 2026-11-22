@@ -76,6 +76,13 @@ export const appointmentApi = {
   })
 }
 
+export const prescriptionApi = {
+  page: params => request.get('/admin/prescriptions', { params }),
+  detail: id => request.get('/admin/prescriptions/' + id),
+  dispense: id => request.put('/admin/prescriptions/' + id + '/dispense'),
+  refund: (id, reason) => request.put('/admin/prescriptions/' + id + '/refund', { reason })
+}
+
 export const medicineApi = {
   page: params => request.get('/admin/medicines', { params }),
   detail: id => request.get(`/admin/medicines/${id}`),

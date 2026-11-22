@@ -3,8 +3,16 @@
   <scroll-view class="rx-detail__scroll" scroll-y>
     <view class="rx-detail__content">
       <view class="card rx-detail__summary">
-        <text class="rx-detail__status">{{ prescription.statusText }}</text>
+        <text class="rx-detail__status">{{ statusText }}</text>
         <text class="rx-detail__amount">{{ amountText }}</text>
+      </view>
+      <view wx:if="{{ prescription.refundTime }}" class="card">
+        <van-cell title="{{ prescription.payMethod === 'balance' ? '药费已退回账户余额' : '已登记模拟退款' }}" label="{{ prescription.refundTime }}" />
+        <van-cell title="退费原因" label="{{ prescription.refundReason }}" />
+      </view>
+      <view wx:if="{{ prescription.status === 'paid' }}" class="card">
+        <van-cell title="请到药房出示处方编号 {{ prescription.id }}" label="由药房核对并登记发药。" />
+        <van-cell title="刷新取药进度" is-link bind:click="refresh" />
       </view>
       <view class="card">
         <view class="card__title">药品明细</view>
@@ -40,9 +48,6 @@
       loading="{{ paying && !payDrawerVisible }}"
       bind:click="onPay"
     >支付 {{ amountText }}</van-button>
-  </view>
-  <view wx:if="{{ canPickup }}" class="rx-detail__footer safe-bottom pickup-footer">
-    <van-button block round type="primary" custom-class="btn-primary" loading="{{ pickuping }}" bind:click="onPickup">确认已取药</van-button>
   </view>
   <view wx:if="{{ prescription.status === 'dispensed' }}" class="rx-detail__footer safe-bottom pickup-footer">
     <van-button block round plain type="primary" custom-class="btn-primary" disabled>已完成取药</van-button>

@@ -55,7 +55,7 @@
             <div class="page-head" style="margin-bottom:12px">
               <div><h3 style="margin:0;font-size:16px">处方明细</h3><p class="page-desc">金额为服务端按药品单价计算</p></div>
               <el-tag v-if="prescription" effect="plain" :type="prescriptionTagType(prescription.status)">
-                {{ prescriptionStatusText(prescription.status) }}
+                {{ prescription.refundTime ? '已退费' : prescriptionStatusText(prescription.status) }}
               </el-tag>
             </div>
             <template v-if="prescription">
@@ -83,11 +83,15 @@
                 </div>
                 <div v-else-if="prescription.status === 'paid'">
                   <span class="muted">{{ prescription.payMethodText || '已支付' }}</span>
-                  <el-button type="success" size="small" :loading="pickingUp" style="margin-left:10px" @click="pickup">确认已取药</el-button>
+                  <span class="muted"> · 请到药房出示处方编号 {{ prescription.id }}</span>
                 </div>
                 <span v-else class="muted">{{ prescription.payMethodText || prescriptionStatusText(prescription.status) }}</span>
               </div>
-              <p class="muted" style="font-size:12px;margin-top:10px">确认取药后，处方会标记为已取药，预约状态同步更新为已完成。</p>
+              <p v-if="prescription.status === 'paid'" class="muted">由药房核对并登记发药。可刷新页面查看进度。</p>
+              <div v-if="prescription.refundTime">
+                <p>{{ prescription.payMethod === 'balance' ? '药费已退回账户余额' : '已登记模拟退款' }} · {{ prescription.refundTime }}</p>
+                <p>退费原因：{{ prescription.refundReason }}</p>
+              </div>
             </template>
             <el-empty v-else description="本次就诊未开具处方" :image-size="70" />
           </div>
@@ -114,7 +118,6 @@ export default {
       prescription: null,
       loading: false,
       paying: false,
-      pickingUp: false,
       payMethod: 'wechat'
     }
   },
@@ -179,21 +182,6 @@ export default {
         .then(() => { this.$message.success('药费支付成功'); this.load() })
         .catch(() => {})
         .finally(() => { this.paying = false })
-    },
-    pickup() {
-      if (!this.prescription || this.prescription.status !== 'paid') return
-      this.$confirm('确认已经从药房领取处方中的药品？确认后本次就诊将标记为已完成。', '确认取药', { type: 'warning' })
-        .then(() => {
-          this.pickingUp = true
-          return patientApi.pickupPrescription(this.prescription.id)
-        })
-        .then(() => {
-          this.$message.success('取药已确认，就诊已完成')
-          this.load()
-          this.loadCandidates()
-        })
-        .catch(() => {})
-        .finally(() => { this.pickingUp = false })
     }
   }
 }
