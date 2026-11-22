@@ -1,6 +1,7 @@
 package com.aaa.backend.dto;
 
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -17,5 +18,6 @@ public class ScheduleBatchDTO {
     private List<String> timeSlots;        
     
     // 统一的总号源数
-    private Integer totalQuota;            
+    private Integer totalQuota;
+    private BigDecimal registrationFee;
 }

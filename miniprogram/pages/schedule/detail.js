@@ -29,8 +29,7 @@ Page({
     api.getDoctorById(doctorId)
       .then((doctor) => {
         this.setData({
-          doctor: enrichDoctor(doctor, true),
-          feeText: formatFee(20)
+          doctor: enrichDoctor(doctor, true)
         })
         this.loadSlots()
       })
@@ -39,16 +38,18 @@ Page({
 
   loadSlots() {
     const { doctorId, selectedDate } = this.data
+    this.schedules = []
+    this.setData({ selectedTime: '', selectedScheduleId: 0, feeText: '', morning: [], afternoon: [], hasAvailable: false })
     api.getSchedules({ doctorId, scheduleDate: selectedDate })
       .then((schedules) => {
+        if (selectedDate !== this.data.selectedDate) return
+        this.schedules = schedules
         const slots = groupSchedules(schedules)
         this.setData({
           morning: slots.morning,
           afternoon: slots.afternoon,
           hasAnySchedule: slots.hasAnySchedule,
-          hasAvailable: slots.hasAvailable,
-          selectedTime: '',
-          selectedScheduleId: 0
+          hasAvailable: slots.hasAvailable
         })
       })
       .catch((err) => toast(err.message || '加载号源失败'))
@@ -60,9 +61,12 @@ Page({
   },
 
   onSlotSelect(e) {
+    const selected = (this.schedules || []).find(slot => slot.id === e.detail.scheduleId)
+    if (!selected) return
     this.setData({
-      selectedTime: e.detail.time,
-      selectedScheduleId: e.detail.scheduleId
+      selectedTime: selected.timeSlot,
+      selectedScheduleId: selected.id,
+      feeText: formatFee(selected.registrationFee)
     })
   },
 

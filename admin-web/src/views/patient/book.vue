@@ -49,7 +49,7 @@
           <div v-loading="loadingSchedules">
             <el-radio-group v-model="scheduleId" style="width:100%">
               <el-radio v-for="s in availableSchedules" :key="s.id" :label="s.id" border class="slot-radio">
-                {{ s.timeSlot }}　<span class="muted">剩余 {{ s.remainQuota }} / {{ s.totalQuota }}</span>
+                {{ s.timeSlot }}　{{ s.registrationFee | money }}　<span class="muted">剩余 {{ s.remainQuota }} / {{ s.totalQuota }}</span>
               </el-radio>
             </el-radio-group>
             <el-empty v-if="!availableSchedules.length" description="该医生当日暂无可预约号源，换个日期试试" :image-size="70" />
@@ -285,15 +285,18 @@ export default {
       if (!valid) return
       if (!this.scheduleId) { this.$message.warning('请先选择就诊号源'); return }
       this.submitting = true
+      const selected = this.availableSchedules.find(s => s.id === this.scheduleId)
+      if (!selected) { this.submitting = false; return }
+      const booking = { scheduleId: selected.id, expectedRegistrationFee: selected.registrationFee }
       const payload = this.patientProfileId
-        ? { scheduleId: this.scheduleId, patientProfileId: this.patientProfileId, remark: this.form.remark }
-        : { scheduleId: this.scheduleId, ...this.form }
+        ? { ...booking, patientProfileId: this.patientProfileId, remark: this.form.remark }
+        : { ...booking, ...this.form }
       patientApi.createAppointment(payload)
         .then(data => {
           this.created = data
           this.payVisible = true
         })
-        .catch(() => {})
+        .catch(() => { this.loadSchedules() })
         .finally(() => { this.submitting = false })
     },
     pay() {

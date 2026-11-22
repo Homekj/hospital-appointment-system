@@ -628,6 +628,8 @@ unpaid --管理员取消--> cancelled
 
 公开接口默认只返回今天及以后、`status = 1` 的排班。`remainQuota = totalQuota - bookedCount`，最小为 `0`。
 
+可预约排班返回 registrationFee（元），用于选号和下单前展示。
+
 ### 7.5 就医导航
 
 `POST /api/triage/analyze`
@@ -824,6 +826,7 @@ WHERE id = ?
 - 保存字段：name、phone、relationship（本人、父母、子女、配偶或其他）、defaultPatient。
 - 创建预约可提供 patientProfileId 代替 patientName 和 patientPhone。后端校验归属并保存姓名、电话快照，删除或编辑常用就诊人不影响历史预约。
 - 同一账号可为不同就诊人预约同一排班，同一就诊人的未取消预约返回 409。历史手填记录按姓名和联系电话匹配。
+- 创建预约可传 expectedRegistrationFee。若与当前排班金额不同，返回 409，号源保持原状。下单后按预约金额支付和退款。
 
 ### 8.4 支付挂号费
 
@@ -1326,6 +1329,8 @@ WHERE id = ?
 - `totalQuota` 不得小于当前 `bookedCount`。
 - 已有预约的排班不得物理删除。
 - 停诊不等于取消已有预约，管理员必须分别处理已有预约。
+
+排班新增、编辑、批量生成可传 registrationFee，范围 0.01 至 10000.00 元，最多两位小数。新增省略时默认 20.00 元，编辑省略时沿用当前价格，历史订单金额以各自快照为准。
 
 ### 12.5 预约管理
 

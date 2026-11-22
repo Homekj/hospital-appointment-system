@@ -44,7 +44,7 @@ public interface ScheduleDao extends BaseMapper<Schedule> {
             SELECT s.id,
                    s.doctor_id,
                    s.schedule_date,
-                   s.time_slot,
+                   s.time_slot, s.registration_fee,
                    s.total_quota,
                    s.booked_count,
                    GREATEST(s.total_quota - s.booked_count, 0) AS remain_quota,

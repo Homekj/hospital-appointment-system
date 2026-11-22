@@ -133,6 +133,7 @@ CREATE TABLE schedule (
     doctor_id     BIGINT      NOT NULL COMMENT '医生',
     schedule_date DATE        NOT NULL COMMENT '出诊日期',
     time_slot     VARCHAR(20) NOT NULL COMMENT '时段',
+    registration_fee DECIMAL(10,2) NOT NULL DEFAULT 20.00 COMMENT '挂号费',
     total_quota   INT         NOT NULL COMMENT '总号源',
     booked_count  INT         NOT NULL DEFAULT 0 COMMENT '已预约数',
     status        TINYINT     NOT NULL DEFAULT 1 COMMENT '0停诊 1正常',

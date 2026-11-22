@@ -34,8 +34,7 @@ import java.util.Set;
 @Service
 public class AppointmentService {
 
-    /** The demo database has no doctor-specific registration fee field, so appointments use a fixed 20.00 fee. */
-    private static final BigDecimal REGISTRATION_FEE = new BigDecimal("20.00");
+    private static final BigDecimal DEFAULT_REGISTRATION_FEE = new BigDecimal("20.00");
 
     private static final Set<String> ALLOWED_FILTER_STATUS = Set.of(
             "unpaid", "pending", "checked_in", "in_consultation",
@@ -127,6 +126,11 @@ public class AppointmentService {
         if (schedule.getScheduleDate() == null || schedule.getScheduleDate().isBefore(LocalDate.now())) {
             throw new BusinessException(BusinessErrorCode.BAD_REQUEST, "该排班日期已过，无法预约");
         }
+        BigDecimal registrationFee = Objects.requireNonNullElse(schedule.getRegistrationFee(), DEFAULT_REGISTRATION_FEE);
+        if (request.expectedRegistrationFee() != null
+                && registrationFee.compareTo(request.expectedRegistrationFee()) != 0) {
+            throw new BusinessException(BusinessErrorCode.CONFLICT, "挂号费已调整，请重新确认排班和费用");
+        }
         Long profileId = request.patientProfileId();
         PatientProfileService.Profile profile = profileId == null ? null : patientProfiles.require(userId, profileId);
         String name = profile == null ? request.patientName().strip() : profile.name();
@@ -150,7 +154,7 @@ public class AppointmentService {
         entity.setPatientPhone(phone);
         entity.setIdCard(request.idCard());
         entity.setRemark(request.remark());
-        entity.setAmount(REGISTRATION_FEE.doubleValue());
+        entity.setAmount(registrationFee.doubleValue());
         entity.setStatus(AppointmentStatus.UNPAID.value());
         appointmentDao.insert(entity);
 

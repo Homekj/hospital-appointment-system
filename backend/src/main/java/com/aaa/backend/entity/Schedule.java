@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -29,6 +30,7 @@ public class Schedule { // 排班表
     private String timeSlot;
 
     // 总号源数/总名额
+    private BigDecimal registrationFee;
     private Integer totalQuota;
 
     // 已预约数

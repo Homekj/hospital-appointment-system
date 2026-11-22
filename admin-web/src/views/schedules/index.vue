@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">排班管理</h2>
-        <p class="page-desc">号源按医生 + 日期 + 时段唯一，支持单条维护与批量生成，对接 /api/admin/schedules</p>
+        <p class="page-desc">按医生、日期和时段设置号源及挂号费</p>
       </div>
     </div>
 
@@ -36,6 +36,9 @@
         <el-table-column prop="departmentName" label="科室" min-width="100" />
         <el-table-column prop="scheduleDate" label="出诊日期" width="130" />
         <el-table-column prop="timeSlot" label="时段" width="90" align="center" />
+        <el-table-column label="挂号费" width="100">
+          <template slot-scope="{ row }">{{ row.registrationFee | money }}</template>
+        </el-table-column>
         <el-table-column prop="totalQuota" label="总号源" width="90" align="center" />
         <el-table-column prop="bookedCount" label="已预约" width="90" align="center" />
         <el-table-column label="剩余" width="90" align="center">
@@ -94,6 +97,9 @@
         <el-form-item label="总号源" prop="totalQuota">
           <el-input-number v-model="form.totalQuota" :min="1" :max="1000" style="width: 100%" />
         </el-form-item>
+        <el-form-item label="挂号费（元）" prop="registrationFee">
+          <el-input-number v-model="form.registrationFee" :min="0.01" :max="10000" :precision="2" :step="1" style="width: 100%" />
+        </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio :label="1">正常</el-radio>
@@ -128,6 +134,9 @@
         <el-form-item label="每时段号源" prop="totalQuota">
           <el-input-number v-model="batchForm.totalQuota" :min="1" :max="1000" />
         </el-form-item>
+        <el-form-item label="挂号费（元）" prop="registrationFee">
+          <el-input-number v-model="batchForm.registrationFee" :min="0.01" :max="10000" :precision="2" :step="1" />
+        </el-form-item>
       </el-form>
       <span slot="footer">
         <el-button @click="batchVisible = false">取消</el-button>
@@ -150,7 +159,7 @@ export default {
       doctorOptions: [],
       batchVisible: false,
       batching: false,
-      batchForm: { doctorIds: [], dateRange: [], timeSlots: [], totalQuota: 5 },
+      batchForm: { doctorIds: [], dateRange: [], timeSlots: [], totalQuota: 5, registrationFee: 20 },
       rules: {
         doctorId: [{ required: true, message: '请选择医生', trigger: 'change' }],
         scheduleDate: [{ required: true, message: '请选择出诊日期', trigger: 'change' }],
@@ -166,7 +175,7 @@ export default {
   },
   methods: {
     defaultQuery() { return { doctorId: '', startDate: '', endDate: '', status: '' } },
-    defaultForm() { return { doctorId: '', scheduleDate: '', timeSlot: '09:00', totalQuota: 5, status: 1 } },
+    defaultForm() { return { doctorId: '', scheduleDate: '', timeSlot: '09:00', totalQuota: 5, registrationFee: 20, status: 1 } },
     pageCreated() {
       catalogApi.doctors().then(list => { this.doctorOptions = list || [] }).catch(() => {})
     },
@@ -179,7 +188,7 @@ export default {
       return Number(row.totalQuota || 0) - Number(row.bookedCount || 0)
     },
     openBatch() {
-      this.batchForm = { doctorIds: [], dateRange: [], timeSlots: ['09:00'], totalQuota: 5 }
+      this.batchForm = { doctorIds: [], dateRange: [], timeSlots: ['09:00'], totalQuota: 5, registrationFee: 20 }
       this.batchVisible = true
       this.$nextTick(() => { if (this.$refs.batchForm) this.$refs.batchForm.clearValidate() })
     },
@@ -193,6 +202,7 @@ export default {
           startDate: range[0],
           endDate: range[1],
           timeSlots: this.batchForm.timeSlots,
+          registrationFee: this.batchForm.registrationFee,
           totalQuota: this.batchForm.totalQuota
         })
           .then(() => {

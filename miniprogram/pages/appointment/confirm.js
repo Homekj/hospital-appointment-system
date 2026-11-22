@@ -19,7 +19,8 @@ Page({
     patientPhone: '',
     remark: '',
     feeText: '',
-    feeAmount: '20.00',
+    feeAmount: '',
+    scheduleError: '',
     timeText: '',
     balance: '0.00',
     payMethods: PAY_METHODS,
@@ -40,27 +41,39 @@ Page({
         }
       })
     }
-    const doctorId = Number(options.doctorId)
-    const scheduleDate = options.scheduleDate || ''
-    const timeSlot = options.timeSlot || ''
-    const scheduleId = Number(options.scheduleId) || 0
-    api.getDoctorById(doctorId)
-      .then((doctor) => {
-        const enriched = enrichDoctor(doctor, true)
-        const feeAmount = Number(enriched.fee || 20).toFixed(2)
-        this.setData({
-          doctor: enriched,
-          deptName: doctor.departmentName || '',
-          scheduleDate,
-          timeSlot,
-          scheduleId,
-          feeText: formatFee(feeAmount),
-          feeAmount,
-          timeText: formatDateTime(scheduleDate, timeSlot)
-        })
-      })
-      .catch((err) => toast(err.message || '加载失败'))
+    this.slot = {
+      doctorId: Number(options.doctorId),
+      scheduleDate: options.scheduleDate || '',
+      scheduleId: Number(options.scheduleId)
+    }
+    api.getDoctorById(this.slot.doctorId)
+      .then(doctor => this.setData({ doctor: enrichDoctor(doctor, true), deptName: doctor.departmentName || '' }))
+      .catch(err => toast(err.message || '加载医生失败'))
+    this.loadSchedule()
     this.loadBalance()
+  },
+
+  async loadSchedule() {
+    const { doctorId, scheduleDate, scheduleId } = this.slot
+    this.setData({ scheduleId: 0, scheduleError: '' })
+    try {
+      const schedules = await api.getSchedules({ doctorId, scheduleDate })
+      const selected = schedules.find(slot => slot.id === scheduleId && Number(slot.remainQuota) > 0)
+      if (!selected || selected.registrationFee == null) {
+        this.setData({ scheduleError: '当前号源已不可预约，请返回重新选择。' })
+        return
+      }
+      const feeAmount = Number(selected.registrationFee).toFixed(2)
+      const timeSlot = selected.timeSlot
+      this.setData({
+        scheduleDate, timeSlot, scheduleId,
+        feeText: formatFee(feeAmount),
+        feeAmount,
+        timeText: formatDateTime(scheduleDate, timeSlot)
+      })
+    } catch (error) {
+      this.setData({ scheduleError: error.message || '加载号源失败' })
+    }
   },
 
   async onShow() {
@@ -135,7 +148,7 @@ Page({
   },
 
   onConfirm() {
-    if (this.data.submitting) return
+    if (this.data.submitting || !this.data.scheduleId) return
     const { payMethod } = this.data
     if (needsPayDrawer(payMethod)) {
       this.setData({ payDrawerVisible: true, payDrawerMethod: payMethod })
@@ -165,7 +178,7 @@ Page({
     let appt
     try {
       const patient = patientProfileId ? { patientProfileId } : { patientName: patientName.trim(), patientPhone }
-      appt = await api.createAppointment({ scheduleId, ...patient, remark })
+      appt = await api.createAppointment({ scheduleId, ...patient, remark, expectedRegistrationFee: Number(feeAmount) })
       await mockChannelPay(payMethod)
       await api.payAppointment(appt.id, payMethod)
       auth.fetchMe().catch(() => {})
@@ -182,7 +195,9 @@ Page({
           success: () => this.openOrder(appt.id)
         })
       } else {
+        this.setData({ payDrawerVisible: false })
         toast(err.message || '预约失败，可在订单页查看是否已生成预约')
+        if (err.message && err.message.includes('挂号费已调整')) this.loadSchedule()
       }
     } finally {
       this.setData({ submitting: false })

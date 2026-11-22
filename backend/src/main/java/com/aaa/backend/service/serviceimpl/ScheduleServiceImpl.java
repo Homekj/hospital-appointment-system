@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -33,6 +34,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     /** 系统允许的固定出诊时段 */
     private static final Set<String> VALID_SLOTS = Set.of("08:00", "09:00", "10:00", "14:00", "15:00", "16:00");
     private static final int MAX_QUOTA = 1000;
+    private static final BigDecimal MIN_FEE = new BigDecimal("0.01");
+    private static final BigDecimal MAX_FEE = new BigDecimal("10000.00");
     private static final int MAX_BATCH_DAYS = 31;
     private static final int MAX_BATCH_ROWS = 1000;
 
@@ -65,6 +68,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
         if (!VALID_SLOTS.contains(dto.getTimeSlot())) {
             return Result.error("非法时段！只能选择系统规定的整点时段。");
+        }
+        String feeError = validateFee(dto.getRegistrationFee());
+        if (feeError != null) {
+            return Result.error(feeError);
         }
         String quotaError = validateQuota(dto.getTotalQuota());
         if (quotaError != null) {
@@ -147,6 +154,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (dto == null || dto.getId() == null) {
             return Result.error("排班ID不能为空");
         }
+        String feeError = validateFee(dto.getRegistrationFee());
+        if (feeError != null) {
+            return Result.error(feeError);
+        }
         Schedule existing = scheduleDao.selectById(dto.getId());
         if (existing == null) {
             return Result.error("排班记录不存在");
@@ -206,6 +217,10 @@ public class ScheduleServiceImpl implements ScheduleService {
                 || dto.getScheduleDateStart() == null || dto.getScheduleDateEnd() == null
                 || dto.getTotalQuota() == null) {
             return Result.error("批量排班参数不完整");
+        }
+        String feeError = validateFee(dto.getRegistrationFee());
+        if (feeError != null) {
+            return Result.error(feeError);
         }
         String quotaError = validateQuota(dto.getTotalQuota());
         if (quotaError != null) {
@@ -284,6 +299,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                     schedule.setDoctorId(doctorId);
                     schedule.setScheduleDate(date);
                     schedule.setTimeSlot(slot);
+                    schedule.setRegistrationFee(dto.getRegistrationFee());
                     schedule.setTotalQuota(dto.getTotalQuota());
                     schedule.setBookedCount(0);
                     schedule.setStatus(1);
@@ -312,6 +328,14 @@ public class ScheduleServiceImpl implements ScheduleService {
             return Result.error("排班记录不存在");
         }
         return Result.ok(schedule);
+    }
+
+    private String validateFee(BigDecimal fee) {
+        if (fee != null && (fee.compareTo(MIN_FEE) < 0 || fee.compareTo(MAX_FEE) > 0
+                || fee.stripTrailingZeros().scale() > 2)) {
+            return "挂号费必须在 0.01 至 10000.00 元之间，最多两位小数";
+        }
+        return null;
     }
 
     private String validateQuota(Integer quota) {

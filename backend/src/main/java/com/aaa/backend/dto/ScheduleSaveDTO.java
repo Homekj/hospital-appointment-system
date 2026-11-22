@@ -1,6 +1,7 @@
 package com.aaa.backend.dto;
 
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -14,6 +15,7 @@ public class ScheduleSaveDTO {
     
     private String timeSlot;
     
+    private BigDecimal registrationFee;
     private Integer totalQuota;
     
     private Integer status; // 1正常，0停诊

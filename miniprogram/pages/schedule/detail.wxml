@@ -20,5 +20,5 @@
       </view>
     </view>
   </scroll-view>
-  <bottom-bar text="立即预约" price="{{ feeText }}" price-label="挂号费" bind:confirm="onBook" />
+  <bottom-bar text="立即预约" price="{{ feeText }}" price-label="挂号费" disabled="{{ !selectedScheduleId }}" bind:confirm="onBook" />
 </view>

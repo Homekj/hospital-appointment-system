@@ -1,0 +1,1 @@
+ALTER TABLE schedule ADD COLUMN registration_fee DECIMAL(10,2) NOT NULL DEFAULT 20.00 AFTER time_slot;

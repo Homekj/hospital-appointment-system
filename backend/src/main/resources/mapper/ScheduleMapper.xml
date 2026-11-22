@@ -8,6 +8,7 @@
         s.doctor_id,
         s.schedule_date,
         s.time_slot,
+        s.registration_fee,
         s.total_quota,
         s.booked_count,
         s.status,

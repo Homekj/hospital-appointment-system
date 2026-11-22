@@ -1,6 +1,7 @@
 package com.aaa.backend.vo;
 
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -9,6 +10,7 @@ public class ScheduleVO {
     private Long doctorId;
     private LocalDate scheduleDate;
     private String timeSlot;
+    private BigDecimal registrationFee;
     private Integer totalQuota;
     private Integer bookedCount;
     private Integer status;

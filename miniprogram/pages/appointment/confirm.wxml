@@ -3,7 +3,8 @@
   <scroll-view class="confirm__scroll" scroll-y>
     <view class="confirm__content">
       <doctor-header doctor="{{ doctor }}" />
-      <view class="card card--flat confirm__info">
+      <van-cell wx:if="{{ scheduleError }}" title="{{ scheduleError }}" value="刷新" is-link bind:click="loadSchedule" />
+      <view wx:if="{{ scheduleId }}" class="card card--flat confirm__info">
         <view class="confirm__row">
           <text class="confirm__label">就诊时间</text>
           <text class="confirm__value confirm__value--primary">{{ timeText }}</text>
@@ -57,7 +58,7 @@
       </view>
     </view>
   </scroll-view>
-  <bottom-bar text="提交并支付" price="{{ feeText }}" bind:confirm="onConfirm" />
+  <bottom-bar text="提交并支付" price="{{ scheduleId ? feeText : '' }}" disabled="{{ !scheduleId || submitting }}" bind:confirm="onConfirm" />
 </view>
 
 <pay-drawer

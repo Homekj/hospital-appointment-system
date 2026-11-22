@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -35,6 +36,8 @@ public class ScheduleBatchRequest {
     @Min(value = 1, message = "totalQuota 必须大于 0")
     private Integer totalQuota;
 
+    private BigDecimal registrationFee;
+
     public ScheduleBatchDTO toDto() {
         ScheduleBatchDTO dto = new ScheduleBatchDTO();
         dto.setDoctorIds(doctorIds);
@@ -42,6 +45,7 @@ public class ScheduleBatchRequest {
         dto.setScheduleDateEnd(endDate);
         dto.setTimeSlots(timeSlots);
         dto.setTotalQuota(totalQuota);
+        dto.setRegistrationFee(registrationFee);
         return dto;
     }
 }
