@@ -20,6 +20,7 @@
       <el-table :data="rows" empty-text="暂无符合条件的处方">
         <el-table-column prop="id" label="处方编号" width="100" />
         <el-table-column prop="appointmentId" label="预约编号" width="100" />
+        <el-table-column prop="patientName" label="就诊人" min-width="98" />
         <el-table-column prop="doctorName" label="医生" min-width="100" />
         <el-table-column prop="departmentName" label="科室" min-width="100" />
         <el-table-column label="金额" width="100"><template slot-scope="{ row }">{{ row.totalAmount | money }}</template></el-table-column>
@@ -38,6 +39,7 @@
       <div v-loading="detailLoading">
         <template v-if="detail">
           <p>处方 #{{ detail.id }} · 预约 #{{ detail.appointmentId }} · {{ statusText(detail) }}</p>
+          <p v-if="detail.patientName">就诊人 {{ detail.patientName }} <span v-if="detail.maskedPatientPhone">· {{ detail.maskedPatientPhone }}</span></p>
           <el-table :data="detail.items || []">
             <el-table-column prop="medicineName" label="药品" />
             <el-table-column prop="spec" label="规格" />

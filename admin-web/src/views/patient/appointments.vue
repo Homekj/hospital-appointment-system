@@ -44,8 +44,8 @@
           <template slot-scope="{ row }">
             <el-button type="text" icon="el-icon-view" @click="showDetail(row)">详情</el-button>
             <el-button v-if="row.status === 'unpaid' && !row.paymentExpired" type="text" icon="el-icon-money" @click="openPay(row)">支付</el-button>
-            <el-button v-if="['unpaid', 'pending'].includes(row.status)" type="text" icon="el-icon-close" class="danger-link" @click="cancel(row)">取消</el-button>
-            <el-button v-if="row.status === 'pending'" type="text" icon="el-icon-location" @click="checkIn(row)">签到</el-button>
+            <el-button v-if="['unpaid', 'pending', 'confirmed'].includes(row.status)" type="text" icon="el-icon-close" class="danger-link" @click="cancel(row)">取消</el-button>
+            <el-button v-if="['pending', 'confirmed'].includes(row.status)" type="text" icon="el-icon-location" @click="checkIn(row)">签到</el-button>
             <el-button v-if="row.status === 'completed' && !row.evaluated" type="text" icon="el-icon-star-off" @click="openReview(row)">评价</el-button>
             <el-button v-if="['pending_rx_pay', 'completed'].includes(row.status)" type="text" icon="el-icon-document" @click="goPrescription(row)">处方</el-button>
           </template>
@@ -156,6 +156,10 @@ export default {
     },
     rebook() {
       this.$router.push({ path: '/patient/book', query: { fromAppointment: this.detail.id } })
+    },
+    pageCreated() {
+      const id = this.$route.query.id
+      if (/^[1-9][0-9]*$/.test(id)) this.showDetail({ id })
     },
     defaultQuery() { return { status: '' } },
     fetchList(params) { return patientApi.appointments(params) },

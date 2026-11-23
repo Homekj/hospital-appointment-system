@@ -41,6 +41,7 @@ export const STATUS_OPTIONS = Object.keys(APPOINTMENT_STATUS)
   .map(value => ({ value, label: APPOINTMENT_STATUS[value].label }))
 
 export function statusText(value) {
+  if (value === 'confirmed') value = 'pending'
   return (APPOINTMENT_STATUS[value] && APPOINTMENT_STATUS[value].label) || value || '-'
 }
 

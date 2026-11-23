@@ -54,15 +54,7 @@
           <template slot-scope="{ row }">
             <el-button type="text" icon="el-icon-view" @click="showDetail(row)">详情</el-button>
             <el-button v-if="canCancel(row)" type="text" icon="el-icon-close" class="danger-link" @click="cancel(row)">取消</el-button>
-            <el-button v-if="row.status === 'pending'" type="text" icon="el-icon-location" @click="checkIn(row)">签到</el-button>
-            <el-dropdown v-if="otherTransitions(row).length" trigger="click" @command="target => changeStatus(row, target)">
-              <el-button type="text" icon="el-icon-sort">流转<i class="el-icon-arrow-down el-icon--right" /></el-button>
-              <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item v-for="t in otherTransitions(row)" :key="t" :command="t">
-                  {{ statusLabel(t) }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </el-dropdown>
+            <el-button v-if="['pending', 'confirmed'].includes(row.status)" type="text" icon="el-icon-location" @click="checkIn(row)">签到</el-button>
           </template>
         </el-table-column>
         <template slot="empty">暂无预约数据</template>
@@ -137,15 +129,13 @@ export default {
     },
     fetchList(params) { return appointmentApi.page(params) },
     statusLabel(value) {
+      if (value === 'confirmed') value = 'pending'
       const found = this.statusOptions.find(item => item.value === value)
       return found ? found.label : value
     },
     statusTagType(value) { return TAG_TYPES[value] || 'info' },
     canCancel(row) {
-      return ['unpaid', 'pending', 'checked_in'].indexOf(row.status) >= 0
-    },
-    otherTransitions(row) {
-      return (row.allowedTransitions || []).filter(t => t !== 'cancelled')
+      return ['unpaid', 'pending', 'confirmed', 'checked_in'].indexOf(row.status) >= 0
     },
     showDetail(row) {
       this.detail = {}
@@ -165,12 +155,6 @@ export default {
     checkIn(row) {
       appointmentApi.checkIn(row.id)
         .then(() => { this.$message.success('签到成功'); this.loadData() })
-        .catch(() => {})
-    },
-    changeStatus(row, target) {
-      this.$confirm(`将状态从「${row.statusLabel}」流转为「${this.statusLabel(target)}」？`, '状态流转', { type: 'warning' })
-        .then(() => appointmentApi.status(row.id, target))
-        .then(() => { this.$message.success('状态已更新'); this.loadData() })
         .catch(() => {})
     },
     exportCsv() {

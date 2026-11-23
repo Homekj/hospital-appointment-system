@@ -63,7 +63,6 @@ export const appointmentApi = {
   statusOptions: () => request.get('/admin/appointment/status-options', legacy),
   cancel: id => request.put(`/admin/appointments/${id}/cancel`),
   checkIn: id => request.put(`/admin/appointment/${id}/check-in`, null, legacy),
-  status: (id, status) => request.put(`/admin/appointment/${id}/status`, { status }, legacy),
   exportCsv: params => request.get('/admin/appointment/export', {
     ...legacy,
     params: {

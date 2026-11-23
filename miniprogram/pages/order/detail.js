@@ -131,7 +131,6 @@ Page({
     try {
       await mockChannelPay(payMethod)
       await api.payAppointment(order.id, payMethod)
-      await auth.fetchMe()
       this.setData({ payDrawerVisible: false })
       wx.showToast({ title: '支付成功', icon: 'success' })
       this.loadOrder(order.id)

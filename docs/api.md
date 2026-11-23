@@ -817,7 +817,7 @@ WHERE id = ?
 并发和幂等：
 
 - 必须使用 MySQL 条件更新防止超卖，Redis 锁只能作为辅助。
-- 同一用户对同一 `scheduleId` 已存在 `unpaid`、`pending`、`checked_in` 或 `in_consultation` 预约时，默认拒绝重复创建并返回 `409`。
+- 同一账号可为不同就诊人预约同一排班，重复预约同一就诊人时返回 409。
 - 如接入 `Idempotency-Key` 请求头，同一用户同一键的重复请求应返回首次创建结果。
 
 ### 8.3.1 常用就诊人
@@ -1332,7 +1332,6 @@ WHERE id = ?
 - 唯一键为 `doctorId + scheduleDate + timeSlot`。
 - `totalQuota` 不得小于当前 `bookedCount`。
 - 已有预约的排班不得物理删除。
-- 停诊不等于取消已有预约，管理员必须分别处理已有预约。
 
 排班新增、编辑、批量生成可传 registrationFee，范围 0.01 至 10000.00 元，最多两位小数。新增省略时默认 20.00 元，编辑省略时沿用当前价格，历史订单金额以各自快照为准。
 
@@ -1353,6 +1352,8 @@ WHERE id = ?
 - 可取消 `unpaid`、`pending`、`checked_in`。
 - `in_consultation`、`pending_rx_pay`、`completed`、`cancelled` 默认不允许直接取消。
 - 取消后释放号源，并按照患者取消规则处理退款和通知。
+
+后台可通过专用接口签到和取消。历史状态修改接口仅兼容签到。支付、接诊、病历和发药由相应业务接口推进。
 
 ### 12.6 处方与发药
 

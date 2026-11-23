@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h2 class="page-title">消息通知</h2>
-        <p class="page-desc">站内消息，未读 <el-badge :value="unread" :hidden="!unread" type="primary" /> 条，对接 /api/notifications</p>
+        <p class="page-desc">站内消息，未读 <el-badge :value="unread" :hidden="!unread" type="primary" /> 条</p>
       </div>
       <el-button icon="el-icon-check" :disabled="!unread" @click="readAll">全部标为已读</el-button>
     </div>
@@ -36,8 +36,9 @@
         <el-table-column label="时间" width="175">
           <template slot-scope="{ row }">{{ row.createTime | time }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100" :fixed="$root.isMobile ? false : 'right'">
+        <el-table-column label="操作" width="160" :fixed="$root.isMobile ? false : 'right'">
           <template slot-scope="{ row }">
+            <el-button v-if="row.bizType === 'appointment' && row.bizId" type="text" @click="openAppointment(row)">查看预约</el-button>
             <el-button v-if="!row.read" type="text" @click="read(row)">标为已读</el-button>
           </template>
         </el-table-column>
@@ -69,6 +70,10 @@ export default {
     pageCreated() { this.loadUnread() },
     loadUnread() {
       patientApi.unreadCount().then(count => { this.unread = Number(count || 0) }).catch(() => {})
+    },
+    openAppointment(row) {
+      if (!row.read) patientApi.readNotification(row.id).catch(() => {})
+      this.$router.push({ path: '/patient/appointments', query: { id: row.bizId } })
     },
     read(row) {
       patientApi.readNotification(row.id)

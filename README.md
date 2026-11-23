@@ -67,6 +67,8 @@ mysql -u root -p --default-character-set=utf8mb4 < sql/system.sql
 
 已有数据库请先备份，再在 hospital_booking 库中按编号执行 sql/migrations/ 下尚未应用的增量脚本。新装直接使用 sql/system.sql。
 
+MySQL 的 ALTER TABLE 会立即提交。如果升级中断，请根据报错和 SHOW COLUMNS 检查已完成的变更，从同一文件中尚未执行的语句继续。若 003 已新增退费字段，可单独补执行其菜单 INSERT；若 005 已新增截止时间字段和索引，可单独补执行两个 UPDATE。对 005 的号源回填应在服务暂停期间执行。
+
 数据库连接信息在 `backend/src/main/resources/application.properties`，请按本机环境调整（用户名、密码、地址、Redis），不要把新密钥提交到仓库。
 
 ### 2. 启动后端

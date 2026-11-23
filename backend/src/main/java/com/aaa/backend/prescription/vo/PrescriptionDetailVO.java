@@ -16,6 +16,8 @@ public class PrescriptionDetailVO {
     private Long doctorId;
     private String doctorName;
     private String departmentName;
+    private String patientName;
+    private String maskedPatientPhone;
     private BigDecimal totalAmount;
     private String status;
     private String payMethod;

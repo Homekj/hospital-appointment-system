@@ -57,7 +57,8 @@ Page({
           items: list,
           amountText: formatFee(rx.totalAmount),
           statusText: rx.refundTime ? '已退费' : ({ unpaid: '待支付', paid: '待取药', dispensed: '已取药', cancelled: '已取消' })[rx.status] || rx.status,
-          canPay: rx.status === 'unpaid'
+          canPay: rx.status === 'unpaid',
+          payDrawerVisible: rx.status === 'unpaid' && this.data.payDrawerVisible
         })
       })
       .catch((err) => toast(err.message || '加载失败'))
@@ -92,7 +93,7 @@ Page({
 
   async doPay() {
     const { prescription, payMethod, balance } = this.data
-    if (!prescription || this.data.paying) return
+    if (!prescription || !this.data.canPay || this.data.paying) return
     if (payMethod === 'balance' && Number(prescription.totalAmount) > Number(balance)) {
       toast('余额不足，请先充值')
       return
@@ -101,13 +102,13 @@ Page({
     try {
       await mockChannelPay(payMethod)
       await api.payPrescription(prescription.id, payMethod)
-      await auth.fetchMe()
       this.setData({ payDrawerVisible: false })
       wx.showToast({ title: '支付成功，请前往药房', icon: 'success' })
       this.loadData()
       this.loadBalance()
     } catch (err) {
       toast(err.message || '支付失败')
+      this.loadData()
     } finally {
       this.setData({ paying: false })
     }

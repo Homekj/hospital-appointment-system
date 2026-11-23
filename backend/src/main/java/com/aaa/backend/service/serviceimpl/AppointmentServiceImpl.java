@@ -24,11 +24,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -169,62 +167,23 @@ public class AppointmentServiceImpl implements AppointmentService {
             return Result.error("只有【待就诊】的预约可以签到，当前状态：【"
                     + labelOf(current.value()) + "】");
         }
-        int updated = appointmentDao.updateStatusIfMatch(
-                id, current.value(), AppointmentStatus.CHECKED_IN.value());
-        if (updated == 0) {
-            return Result.error("预约状态已变更，请刷新后重试");
+        if (appointmentDao.checkInOnScheduleDate(id) != 1) {
+            return Result.error("仅可在就诊当天签到，请核对预约日期和状态");
         }
         return Result.ok("签到成功");
     }
 
-    /**
-     * 改状态：只放行 AppointmentStatus.canTransitionTo 定义的合法流转。
-     * 特别注意：禁止把状态直接改成 cancelled —— 取消必须走 cancel 接口，
-     * 否则会绕过号源回滚，造成 schedule.booked_count 与真实预约数永久不一致。
-     */
+    /** 兼容旧客户端的签到操作，支付和诊疗均使用各自的业务接口。 */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public Result changeStatus(Long id, AppointmentStatusDTO dto) {
-        if (id == null) {
-            return Result.error("预约ID不能为空");
-        }
-        if (dto == null || dto.getStatus() == null || dto.getStatus().trim().isEmpty()) {
+        if (dto == null || dto.getStatus() == null || dto.getStatus().isBlank()) {
             return Result.error("目标状态不能为空");
         }
-        String targetValue = dto.getStatus().trim();
-        AppointmentStatus target = parseStatus(targetValue);
-        if (target == null) {
-            return Result.error("预约状态值不合法：" + targetValue + "，合法值为 " + STATUS_LABELS.keySet());
+        if (!AppointmentStatus.CHECKED_IN.value().equals(dto.getStatus().trim())) {
+            return Result.error("本入口仅支持签到，请通过支付、取消、医生接诊或药房发药流程更新预约");
         }
-        if (target == AppointmentStatus.CANCELLED) {
-            return Result.error("取消预约需要回滚号源，请使用 PUT /{id}/cancel 接口，不能通过改状态直接取消");
-        }
-        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(id, null);
-        Appointment appointment = appointmentDao.selectById(id);
-        if (appointment == null) {
-            return Result.error("预约记录不存在");
-        }
-        if ((target == AppointmentStatus.PENDING || target == AppointmentStatus.CHECKED_IN
-                || target == AppointmentStatus.IN_CONSULTATION)
-                && (schedule == null || !Integer.valueOf(1).equals(schedule.getStatus()))) {
-            return Result.error("该排班已停诊");
-        }
-        AppointmentStatus current = parseStatus(appointment.getStatus());
-        if (current == null) {
-            return Result.error("预约状态数据异常：" + appointment.getStatus());
-        }
-        if (current == target) {
-            return Result.error("预约已处于【" + labelOf(target.value()) + "】状态");
-        }
-        if (!current.canTransitionTo(target)) {
-            return Result.error("不允许的状态流转：" + labelOf(current.value()) + " → "
-                    + labelOf(target.value()) + "；当前允许的流转：" + transitionsOf(current.value()));
-        }
-        int updated = appointmentDao.updateStatusIfMatch(id, current.value(), target.value());
-        if (updated == 0) {
-            return Result.error("预约状态已变更，请刷新后重试");
-        }
-        return Result.ok("状态已更新为【" + labelOf(target.value()) + "】");
+        return checkIn(id);
     }
 
     @Override
@@ -268,22 +227,20 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private String labelOf(String value) {
-        return STATUS_LABELS.getOrDefault(value, value == null ? "" : value);
+        AppointmentStatus status = parseStatus(value);
+        return status == null ? (value == null ? "" : value) : STATUS_LABELS.get(status.value());
     }
 
     private List<String> transitionsOf(String value) {
         AppointmentStatus current = parseStatus(value);
-        if (current == null) {
+        if (current == null || !current.canCancelByAdmin()) {
             return List.of();
         }
-        return Arrays.stream(AppointmentStatus.values())
-                .filter(current::canTransitionTo)
-                .map(AppointmentStatus::value)
-                .collect(Collectors.toList());
+        return current.canCheckIn() ? List.of("checked_in", "cancelled") : List.of("cancelled");
     }
 
     private AppointmentStatus parseStatus(String value) {
-        if (value == null || !STATUS_LABELS.containsKey(value)) {
+        if (value == null || value.isBlank()) {
             return null;
         }
         try {

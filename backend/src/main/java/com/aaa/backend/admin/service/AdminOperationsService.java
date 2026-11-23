@@ -22,6 +22,7 @@ import com.aaa.backend.prescription.vo.PrescriptionDetailVO;
 import com.aaa.backend.prescription.vo.PrescriptionItemVO;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -99,7 +100,7 @@ public class AdminOperationsService {
         return detail;
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PrescriptionDetailVO dispense(Long id) {
         PrescriptionDetailVO prescription = requirePrescription(id);
         if ("dispensed".equals(prescription.getStatus())) {

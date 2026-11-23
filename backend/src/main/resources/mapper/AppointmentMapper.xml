@@ -83,29 +83,11 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 条件更新：当前状态不匹配时影响行数为 0，用来挡并发重复操作 -->
-    <update id="updateStatusIfMatch">
-        UPDATE appointment
-        SET status = #{toStatus}, update_time = NOW(),
-            check_in_time = CASE WHEN #{toStatus} = 'checked_in' THEN NOW(6) ELSE check_in_time END
-        WHERE id = #{id} AND status = #{fromStatus}
-        <if test="fromStatus == 'unpaid' and toStatus == 'pending'">
-            AND (payment_deadline IS NULL OR payment_deadline &gt; CURRENT_TIMESTAMP)
-        </if>
+    <update id="checkInOnScheduleDate">
+        UPDATE appointment a
+        SET status = 'checked_in', check_in_time = NOW(6)
+        WHERE a.id = #{id} AND a.status IN ('pending', 'confirmed')
+            AND EXISTS (SELECT 1 FROM schedule s WHERE s.id = a.schedule_id
+                        AND s.schedule_date = CURDATE() AND s.status = 1)
     </update>
-
-    <!-- 原子回滚号源，booked_count > 0 保证不会减成负数 -->
-    <update id="decreaseBookedCount">
-        UPDATE schedule
-        SET booked_count = booked_count - 1
-        WHERE id = #{scheduleId} AND booked_count &gt; 0
-    </update>
-
-    <!-- 患者端下单占用号源，与回滚保持同一套原子写法，且防止超卖 -->
-    <update id="increaseBookedCount">
-        UPDATE schedule
-        SET booked_count = booked_count + 1
-        WHERE id = #{scheduleId} AND booked_count &lt; total_quota
-    </update>
-
 </mapper>

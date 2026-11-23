@@ -21,24 +21,6 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
     /** 导出用（不分页，带行数上限） */
     List<AppointmentVO> listForExport(@Param("query") AppointmentQuery query, @Param("limit") int limit);
 
-    /**
-     * 条件更新状态：只有当前状态仍为 fromStatus 时才更新成功。
-     * 这是防并发的关键：两个管理员同时点取消，只会有一个更新成功，
-     * 从而保证 schedule.booked_count 只会被减一次。
-     */
-    int updateStatusIfMatch(@Param("id") Long id,
-                            @Param("fromStatus") String fromStatus,
-                            @Param("toStatus") String toStatus);
-
-    /**
-     * 取消预约时回滚号源。
-     * 原子 UPDATE + booked_count > 0 条件，保证不会减成负数，也不需要先把值读出来再写回。
-     */
-    int decreaseBookedCount(@Param("scheduleId") Long scheduleId);
-
-    /**
-     * 患者端下单占用号源时使用，与回滚保持同一套原子写法。
-     * booked_count &lt; total_quota 防止超卖。本模块暂不暴露接口，留给下单逻辑复用。
-     */
-    int increaseBookedCount(@Param("scheduleId") Long scheduleId);
+    /** 管理员到院签到，保留历史 confirmed 状态的兼容。 */
+    int checkInOnScheduleDate(@Param("id") Long id);
 }
