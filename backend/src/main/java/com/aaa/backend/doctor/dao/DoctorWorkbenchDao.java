@@ -20,12 +20,13 @@ import java.util.List;
 public interface DoctorWorkbenchDao {
 
     @Select("""
-            SELECT a.id, a.patient_name, s.time_slot, a.status, a.check_in_time
+            SELECT a.id, a.patient_name, s.time_slot, a.status, a.check_in_time, a.queue_deferred_at,
+                   COALESCE(a.queue_joined_at, a.check_in_time, a.update_time) AS queue_joined_at
               FROM schedule s JOIN appointment a ON a.schedule_id = s.id
              WHERE s.doctor_id = #{doctorId} AND s.schedule_date = CURDATE()
                AND a.status IN ('checked_in', 'in_consultation')
-             ORDER BY (a.status = 'in_consultation') DESC, s.time_slot, s.id,
-                      COALESCE(a.check_in_time, a.update_time), a.id
+             ORDER BY (a.status = 'in_consultation') DESC, (a.queue_deferred_at IS NOT NULL),
+                      s.time_slot, s.id, queue_joined_at, a.id
             """)
     List<DoctorQueueEntry> selectTodayQueue(@Param("doctorId") Long doctorId);
 

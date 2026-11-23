@@ -36,7 +36,7 @@
         </el-table-column>
         <el-table-column label="状态" width="110" align="center">
           <template slot-scope="{ row }">
-            <el-tag size="small" effect="plain" :type="statusTagType(row.status)">{{ row.status | statusText }}</el-tag>
+            <el-tag size="small" effect="plain" :type="statusTagType(row.status)"><span v-if="row.status === 'checked_in' && row.queueDeferredAt">已过号</span><span v-else>{{ row.status | statusText }}</span></el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="payMethodText" label="支付方式" width="105" />
@@ -75,7 +75,10 @@
           <el-col :span="12"><p><strong>证件号</strong>{{ detail.idCard || '未填写' }}</p></el-col>
           <el-col :span="12"><p><strong>下单时间</strong>{{ detail.createTime | time }}</p></el-col>
           <el-col :span="24"><p><strong>就诊地点</strong>{{ detail.departmentLocation || '请向医院导诊台确认' }}</p></el-col>
-          <el-col v-if="detail.status === 'checked_in' && detail.waitingAhead != null" :span="24">
+          <el-col v-if="detail.status === 'checked_in' && detail.queueDeferredAt" :span="24">
+            <p><strong>本次候诊已过号</strong>请联系现场工作人员确认到场，恢复后排到本时段队尾。</p>
+          </el-col>
+          <el-col v-else-if="detail.status === 'checked_in' && detail.waitingAhead != null" :span="24">
             <p><strong>本时段前方等候</strong>{{ detail.waitingAhead }} 位<span v-if="detail.inConsultationCount">，正在接诊 {{ detail.inConsultationCount }} 位</span></p>
             <p class="muted">请留意现场叫号，接诊次序以现场安排为准。</p>
           </el-col>

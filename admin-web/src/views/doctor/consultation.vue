@@ -11,7 +11,7 @@
       <div class="toolbar">
         <div class="filters">
           <el-select v-model="appointmentId" filterable clearable placeholder="选择今日候诊或接诊中的预约" style="width: 380px" @change="loadDetail">
-            <el-option v-for="a in candidates" :key="a.id" :label="`#${a.id} ${a.patientName} · ${a.timeSlot} · ${statusText(a.status)}${a.checkInTime ? ' · 签到 ' + a.checkInTime.slice(11, 16) : ''}`" :value="a.id" />
+            <el-option v-for="a in candidates" :key="a.id" :label="queueLabel(a)" :value="a.id" />
           </el-select>
           <el-input v-model="manualId" placeholder="或直接输入预约 ID" style="width: 180px" @keyup.enter.native="loadById" />
           <el-button type="primary" icon="el-icon-search" @click="loadById">加载</el-button>
@@ -34,7 +34,7 @@
               电话 {{ maskPhone(detail.appointment.patientPhone) }} · 挂号费 {{ money(detail.appointment.amount) }}
             </p>
           </div>
-          <el-tag :type="statusTagType(detail.appointment.status)" effect="plain">{{ statusText(detail.appointment.status) }}</el-tag>
+          <el-tag :type="statusTagType(detail.appointment.status)" effect="plain">{{ queueDeferred ? '已过号' : statusText(detail.appointment.status) }}</el-tag>
         </div>
         <el-steps :active="stepActive" finish-status="success" simple>
           <el-step title="已预约" />
@@ -43,8 +43,10 @@
           <el-step title="完成接诊 / 开方" />
         </el-steps>
         <div style="margin-top: 16px">
-          <el-button v-if="canStart" type="primary" icon="el-icon-video-play" :loading="starting" @click="start">开始接诊（叫号）</el-button>
-          <el-tag v-if="!canStart && !canSaveClinical" type="info" effect="plain">{{ statusHint }}</el-tag>
+          <el-button v-if="canStart" type="primary" icon="el-icon-video-play" :loading="starting" :disabled="queueBusy" @click="start">开始接诊（叫号）</el-button>
+          <el-button v-if="canStart" type="warning" plain :loading="queueBusy" :disabled="starting" @click="updateQueue(true)">标记过号</el-button>
+          <el-button v-if="queueDeferred" type="primary" :loading="queueBusy" @click="updateQueue(false)">恢复候诊（排到队尾）</el-button>
+          <el-tag v-if="!canStart && !canSaveClinical && !queueDeferred" type="info" effect="plain">{{ statusHint }}</el-tag>
         </div>
       </div>
 
@@ -148,6 +150,7 @@ export default {
       items: [],
       loading: false,
       starting: false,
+      queueBusy: false,
       saving: false,
       completing: false,
       clinicalRules: {
@@ -158,7 +161,10 @@ export default {
   },
   computed: {
     status() { return (this.detail.appointment && this.detail.appointment.status) || '' },
-    canStart() { return this.status === 'checked_in' },
+    queueDeferred() {
+      return this.status === 'checked_in' && Boolean(this.detail.appointment.queueDeferredAt)
+    },
+    canStart() { return this.status === 'checked_in' && !this.queueDeferred },
     canSaveClinical() { return this.status === 'in_consultation' },
     canComplete() { return this.status === 'in_consultation' && !!this.detail.consultation },
     hasStockShortage() { return this.items.some(item => this.exceedsStock(item)) },
@@ -188,6 +194,10 @@ export default {
       return !!medicine && Number(item.quantity || 0) > Number(medicine.stock || 0)
     },
     maskPhone(value) { return value ? String(value).slice(0, 3) + '****' + String(value).slice(-4) : '-' },
+    queueLabel(row) {
+      const label = row.queueDeferredAt ? '已过号' : statusText(row.status)
+      return '#' + row.id + ' ' + row.patientName + ' · ' + row.timeSlot + ' · ' + label
+    },
     loadCandidates() {
       doctorApi.queue()
         .then(list => { this.candidates = list || [] })
@@ -210,7 +220,28 @@ export default {
         .catch(() => { this.detail = {} })
         .finally(() => { this.loading = false })
     },
+    async updateQueue(deferred) {
+      if (this.queueBusy || this.starting) return
+      const id = this.appointmentId
+      this.queueBusy = true
+      try {
+        if (deferred) {
+          await this.$confirm('患者暂时移出候诊队列，到场后可以排到队尾。', '标记过号', { type: 'warning' })
+          await doctorApi.skipQueue(id)
+        } else {
+          await doctorApi.rejoinQueue(id)
+        }
+        this.$message.success(deferred ? '已标记过号' : '已恢复候诊')
+        this.loadCandidates()
+        if (this.appointmentId === id) this.loadDetail(id)
+      } catch (error) {
+        // 用户取消或请求拦截器已提示。
+      } finally {
+        this.queueBusy = false
+      }
+    },
     start() {
+      if (this.starting || this.queueBusy) return
       this.starting = true
       doctorApi.start(this.appointmentId)
         .then(() => { this.$message.success('已叫号，开始接诊'); this.loadDetail(this.appointmentId); this.loadCandidates() })

@@ -10,7 +10,11 @@
       <van-cell wx:if="{{ order.cancellationType === 'schedule_stopped' }}" title="重新预约" label="选择医生和新的就诊时段" is-link bind:click="onRebook" />
       <van-cell wx:if="{{ order.rawStatus === 'unpaid' && order.paymentExpired }}" title="支付已超时" label="订单即将自动取消，请重新预约。" />
       <van-cell wx:elif="{{ order.rawStatus === 'unpaid' && order.paymentDeadline }}" title="请在此时间前支付" value="{{ order.paymentDeadline }}" label="超时后号源自动释放。" />
-      <view wx:if="{{ order.rawStatus === 'checked_in' }}" class="card">
+      <view wx:if="{{ order.rawStatus === 'checked_in' && order.queueDeferredAt }}" class="card">
+        <van-cell title="本次候诊已过号" value="刷新" is-link bind:click="refreshOrder" />
+        <van-cell label="请联系现场工作人员确认到场。恢复后将排到本时段队尾。" />
+      </view>
+      <view wx:elif="{{ order.rawStatus === 'checked_in' }}" class="card">
         <van-cell title="候诊进度" value="刷新" is-link bind:click="refreshOrder" />
         <van-cell wx:if="{{ order.waitingAhead != null }}" title="本时段前方等候" value="{{ order.waitingAhead }} 位" />
         <van-cell wx:if="{{ order.inConsultationCount > 0 }}" title="本时段正在接诊" value="{{ order.inConsultationCount }} 位" />

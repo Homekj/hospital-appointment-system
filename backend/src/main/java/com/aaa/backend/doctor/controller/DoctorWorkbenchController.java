@@ -153,6 +153,18 @@ public class DoctorWorkbenchController {
         return ApiResponse.success(service.consultation(id, currentUserContext.requireDoctorId()));
     }
 
+    @PostMapping("/appointments/{id}/queue/skip")
+    public ApiResponse<Void> skipQueue(@PathVariable Long id) {
+        service.setQueueDeferred(id, currentUserContext.requireDoctorId(), true);
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/appointments/{id}/queue/rejoin")
+    public ApiResponse<Void> rejoinQueue(@PathVariable Long id) {
+        service.setQueueDeferred(id, currentUserContext.requireDoctorId(), false);
+        return ApiResponse.success();
+    }
+
     /** api.md 13.6 开始接诊：checked_in → in_consultation，重复调用幂等 */
     @PostMapping("/appointments/{id}/start")
     public ApiResponse<Void> start(@PathVariable Long id) {

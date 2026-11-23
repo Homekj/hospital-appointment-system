@@ -24,6 +24,7 @@ public record AppointmentSummary(
         String status,
         String remark,
         LocalDateTime createTime,
-        LocalDateTime updateTime
+        LocalDateTime updateTime,
+        LocalDateTime queueDeferredAt
 ) {
 }

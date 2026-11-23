@@ -67,7 +67,7 @@ mysql -u root -p --default-character-set=utf8mb4 < sql/system.sql
 
 已有数据库请先备份，再在 hospital_booking 库中按编号执行 sql/migrations/ 下尚未应用的增量脚本。新装直接使用 sql/system.sql。
 
-MySQL 的 ALTER TABLE 会立即提交。如果升级中断，请根据报错和 SHOW COLUMNS 检查已完成的变更，从同一文件中尚未执行的语句继续。若 003 已新增退费字段，可单独补执行其菜单 INSERT；若 005 已新增截止时间字段和索引，可单独补执行两个 UPDATE。对 005 的号源回填应在服务暂停期间执行。
+MySQL 的 ALTER TABLE 会立即提交。如果升级中断，请根据报错和 SHOW COLUMNS 检查已完成的变更，从同一文件中尚未执行的语句继续。若 003 已新增退费字段，可单独补执行其菜单 INSERT；若 005 已新增截止时间字段和索引，可单独补执行两个 UPDATE；若 007 已新增候诊字段和索引，可单独补执行其 UPDATE。对 005 的号源回填应在服务暂停期间执行。
 
 数据库连接信息在 `backend/src/main/resources/application.properties`，请按本机环境调整（用户名、密码、地址、Redis），不要把新密钥提交到仓库。
 
@@ -91,6 +91,8 @@ mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=9090
 如有医院人工导诊台联系电话，可通过环境变量 TRIAGE_HELP_PHONE 配置。患者在就医导航结果可直接联系导诊台。
 
 管理员在「排班管理」中填写停诊原因。系统处理尚未接诊的预约并通知患者，患者可从预约详情重新选择医生和时段。上线这项功能需应用迁移 006。
+
+医生工作台支持对当天已签到的预约标记过号，并在患者回来后恢复候诊。恢复后从同一时段队尾开始排队，原签到时间仍保留。使用此功能需应用迁移 007。
 
 ### 3. 启动前端（管理员 / 医生 / 患者统一登录入口）
 

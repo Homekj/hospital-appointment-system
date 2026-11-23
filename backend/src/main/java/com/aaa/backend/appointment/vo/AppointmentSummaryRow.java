@@ -35,4 +35,5 @@ public class AppointmentSummaryRow {
     private String remark;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private LocalDateTime queueDeferredAt;
 }

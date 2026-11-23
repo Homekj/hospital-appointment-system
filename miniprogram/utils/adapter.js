@@ -125,6 +125,7 @@ function toOrder(appt) {
     cancellationType: appt.cancellationType || '',
     cancellationReason: appt.cancellationReason || '',
     refundStatus: appt.refundStatus || '',
+    queueDeferredAt: appt.queueDeferredAt || '',
     status: displayStatus,
     rawStatus,
     displayStatus,

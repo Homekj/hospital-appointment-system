@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.List;
 
 /**
@@ -120,7 +121,7 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
                 row.getDoctorName(), row.getDoctorTitle(), row.getDepartmentId(), row.getDepartmentName(),
                 row.getScheduleDate(), row.getTimeSlot(), row.getPatientName(), row.getPatientPhone(),
                 row.getAmount(), row.getPayMethod(), row.getPayTime(), row.getStatus(), row.getRemark(),
-                row.getCreateTime(), row.getUpdateTime());
+                row.getCreateTime(), row.getUpdateTime(), row.getQueueDeferredAt());
     }
 
     /** pending 兼容历史别名 confirmed；其余状态按契约枚举取值精确匹配。 */
@@ -234,12 +235,53 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
         balanceLogDao.insert(entry);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public void setQueueDeferred(Long appointmentId, Long doctorId, boolean deferred) {
+        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(appointmentId, null);
+        if (schedule == null) {
+            throw new BusinessException(BusinessErrorCode.APPOINTMENT_NOT_FOUND);
+        }
+        if (doctorId == null || !Objects.equals(doctorId, schedule.getDoctorId())) {
+            throw new BusinessException(BusinessErrorCode.FORBIDDEN);
+        }
+        requireTodaysSchedule(schedule);
+        AppointmentDetailVO locked = appointmentDao.lockByIdForUpdate(appointmentId);
+        if (locked == null || !"checked_in".equals(locked.getStatus())) {
+            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, "只有已签到且尚未接诊的预约可调整候诊顺序");
+        }
+        if (deferred == (locked.getQueueDeferredAt() != null)) {
+            return;
+        }
+        int updated = deferred ? contractDao.deferQueue(appointmentId) : contractDao.rejoinQueue(appointmentId);
+        if (updated != 1) {
+            throw new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT);
+        }
+        if (deferred) {
+            notifyQuietly(locked.getUserId(), "appointment_queue_deferred", "本次候诊已过号",
+                    "请联系现场工作人员，确认到场后可重新排队。", appointmentId);
+        } else {
+            notifyQuietly(locked.getUserId(), "appointment_queue_rejoined", "已重新排队",
+                    "您已加入当前时段的候诊队尾，请留意现场叫号。", appointmentId);
+        }
+    }
+
+    private void requireTodaysSchedule(Schedule schedule) {
+        if (schedule == null || !Integer.valueOf(1).equals(schedule.getStatus())) {
+            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, "该排班已停诊");
+        }
+        if (!Objects.equals(scheduleDao.currentDate(), schedule.getScheduleDate())) {
+            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, "仅可处理当天的候诊预约");
+        }
+    }
+
     /** 开始接诊：checked_in -> in_consultation，重复调用幂等。 */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void startConsultation(Long appointmentId, Long doctorId) {
-        scheduleDao.selectByAppointmentForUpdate(appointmentId, null);
-        if (contractDao.lockStatusForUpdate(appointmentId) == null) {
+        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(appointmentId, null);
+        AppointmentDetailVO locked = appointmentDao.lockByIdForUpdate(appointmentId);
+        if (locked == null) {
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_NOT_FOUND,
                     "预约不存在或不属于当前医生");
         }
@@ -255,6 +297,10 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
         if (!status.canStartConsultation()) {
             throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE,
                     "仅已签到的预约可开始接诊");
+        }
+        requireTodaysSchedule(schedule);
+        if (locked.getQueueDeferredAt() != null) {
+            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, "该患者已过号，请先恢复候诊");
         }
         int rows = contractDao.startConsultation(appointmentId, doctorId);
         if (rows == 0) {

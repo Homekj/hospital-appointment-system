@@ -12,6 +12,9 @@ import java.util.List;
 
 public interface ScheduleDao extends BaseMapper<Schedule> {
 
+    @Select("SELECT CURRENT_DATE")
+    LocalDate currentDate();
+
     /** Lock the slot row before checking duplicate appointments and consuming quota. */
     @Select("SELECT * FROM schedule WHERE id = #{scheduleId} FOR UPDATE")
     Schedule selectByIdForUpdate(@Param("scheduleId") Long scheduleId);

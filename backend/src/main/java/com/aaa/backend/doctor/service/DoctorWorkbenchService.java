@@ -178,6 +178,11 @@ public class DoctorWorkbenchService {
         return workbenchDao.selectTodayQueue(doctorId);
     }
 
+    public void setQueueDeferred(Long appointmentId, Long doctorId, boolean deferred) {
+        requireOwnership(appointmentId, doctorId);
+        commandService.setQueueDeferred(appointmentId, doctorId, deferred);
+    }
+
     /** 开始接诊：checked_in -> in_consultation，契约实现本身幂等 */
     public void startConsultation(Long appointmentId, Long doctorId) {
         requireOwnership(appointmentId, doctorId);

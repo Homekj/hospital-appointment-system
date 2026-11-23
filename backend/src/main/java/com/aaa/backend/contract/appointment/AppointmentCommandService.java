@@ -6,6 +6,8 @@ public interface AppointmentCommandService {
 
     int stopSchedule(Long scheduleId, String reason, Long operatorUserId);
 
+    void setQueueDeferred(Long appointmentId, Long doctorId, boolean deferred);
+
     void startConsultation(Long appointmentId, Long doctorId);
 
     void completeConsultation(Long appointmentId, Long doctorId);

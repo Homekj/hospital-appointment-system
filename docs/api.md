@@ -902,7 +902,7 @@ WHERE id = ?
 
 成功响应 `data` 为签到后的预约对象。
 
-预约详情在已签到时返回 checkInTime、waitingAhead（同排班中更早签到且仍在候诊的人数）和 inConsultationCount（同排班正在接诊的人数）。同一签到时间按预约 ID 排序。
+预约详情在已签到时返回 checkInTime 和候诊进度。waitingAhead 统计同排班中更早加入且仍在等候的人数；inConsultationCount 统计同排班正在接诊的人数。过号时 queueDeferredAt 为过号时间，暂停显示排队人数。恢复后按重新加入时间排队，相同时间按预约 ID 排序。
 
 ### 8.7 查看病历
 
@@ -1516,7 +1516,9 @@ WHERE id = ?
 
 成功响应为分页预约对象，只能包含当前医生数据。
 
-医生可通过 GET /api/doctor/queue 读取本人当天的已签到和接诊中预约。接诊中置顶，候诊按时段和签到顺序排列。开始接诊成功时给预约账号发站内叫号通知。
+医生可通过 GET /api/doctor/queue 查看本人当天的候诊、过号和接诊中预约。接诊中置顶，候诊按时段和进入队列时间排列，过号置于队列末尾单独处理。
+
+医生使用 POST /api/doctor/appointments/{id}/queue/skip 暂停该预约的候诊，使用 POST /api/doctor/appointments/{id}/queue/rejoin 将患者重新排到本时段队尾。仅当天已签到且尚未接诊的本人预约可操作。相同动作重试不会重复通知或重新计时。过号时须先恢复候诊才能开始接诊。两个动作均发送站内消息。
 
 ### 13.5 预约详情
 

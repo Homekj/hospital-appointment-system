@@ -49,6 +49,8 @@ public class AppointmentDetailVO {
     private String status;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkInTime;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime queueDeferredAt;
     private Long waitingAhead;
     private Long inConsultationCount;
     private String remark;

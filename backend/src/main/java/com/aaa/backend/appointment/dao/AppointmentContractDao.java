@@ -32,7 +32,7 @@ public interface AppointmentContractDao {
                    s.schedule_date, s.time_slot,
                    a.patient_name, a.patient_phone, a.amount,
                    a.pay_method, a.pay_time, a.status, a.remark,
-                   a.create_time, a.update_time
+                   a.create_time, a.update_time, a.queue_deferred_at
               FROM appointment a
               JOIN schedule s ON s.id = a.schedule_id
               JOIN doctor doc ON doc.id = s.doctor_id
@@ -113,15 +113,28 @@ public interface AppointmentContractDao {
     int cancelByAdmin(@Param("id") Long id, @Param("type") String type, @Param("reason") String reason,
                       @Param("refundStatus") String refundStatus);
 
+    @Update("""
+            UPDATE appointment SET queue_deferred_at = NOW(6)
+             WHERE id = #{id} AND status = 'checked_in' AND queue_deferred_at IS NULL
+            """)
+    int deferQueue(@Param("id") Long id);
+
+    @Update("""
+            UPDATE appointment SET queue_deferred_at = NULL, queue_joined_at = NOW(6)
+             WHERE id = #{id} AND status = 'checked_in' AND queue_deferred_at IS NOT NULL
+            """)
+    int rejoinQueue(@Param("id") Long id);
+
     /** 开始接诊：checked_in -> in_consultation，且必须由该排班所属医生操作。 */
     @Update("""
             UPDATE appointment a
                SET a.status = 'in_consultation'
              WHERE a.id = #{id}
-               AND a.status = 'checked_in'
+               AND a.status = 'checked_in' AND a.queue_deferred_at IS NULL
                AND EXISTS (
                     SELECT 1 FROM schedule s
                      WHERE s.id = a.schedule_id AND s.doctor_id = #{doctorId} AND s.status = 1
+                       AND s.schedule_date = CURDATE()
                )
             """)
     int startConsultation(@Param("id") Long id, @Param("doctorId") Long doctorId);
