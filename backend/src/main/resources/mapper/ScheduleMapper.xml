@@ -14,7 +14,9 @@
         s.status,
         d.name AS doctorName,
         dept.name AS departmentName,
-        (s.total_quota - s.booked_count) AS remainQuota
+        (s.total_quota - s.booked_count) AS remainQuota,
+        (SELECT COUNT(*) FROM appointment a WHERE a.schedule_id = s.id
+            AND a.status IN ('unpaid', 'pending', 'confirmed', 'checked_in')) AS awaitingVisitCount
         FROM schedule s
         LEFT JOIN doctor d ON s.doctor_id = d.id
         LEFT JOIN department dept ON d.department_id = dept.id

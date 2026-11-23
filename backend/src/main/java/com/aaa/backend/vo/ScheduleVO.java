@@ -13,6 +13,7 @@ public class ScheduleVO {
     private BigDecimal registrationFee;
     private Integer totalQuota;
     private Integer bookedCount;
+    private Integer awaitingVisitCount;
     private Integer status;
 
     // 联表查询出来的字段

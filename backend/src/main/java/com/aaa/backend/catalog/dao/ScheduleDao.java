@@ -16,6 +16,18 @@ public interface ScheduleDao extends BaseMapper<Schedule> {
     @Select("SELECT * FROM schedule WHERE id = #{scheduleId} FOR UPDATE")
     Schedule selectByIdForUpdate(@Param("scheduleId") Long scheduleId);
 
+    @Select("""
+            SELECT s.* FROM schedule s
+            WHERE s.id = (SELECT a.schedule_id FROM appointment a
+                           WHERE a.id = #{appointmentId}
+                             AND (#{userId,jdbcType=BIGINT} IS NULL OR a.user_id = #{userId,jdbcType=BIGINT}))
+            FOR UPDATE
+            """)
+    Schedule selectByAppointmentForUpdate(@Param("appointmentId") Long appointmentId, @Param("userId") Long userId);
+
+    @Update("UPDATE schedule SET status = 0 WHERE id = #{id} AND status <> 0")
+    int markStopped(@Param("id") Long id);
+
     /**
      * 原子扣减号源：把「判断是否还有余量」和「+1」放进同一条 UPDATE。
      * MySQL 会对命中的行加排他锁，两个并发请求只有一个能拿到影响行数 1，

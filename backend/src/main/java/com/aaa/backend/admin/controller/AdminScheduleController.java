@@ -5,10 +5,14 @@ import com.aaa.backend.admin.dto.StatusRequest;
 import com.aaa.backend.admin.support.ResultBridge;
 import com.aaa.backend.common.ApiResponse;
 import com.aaa.backend.common.PageResult;
+import com.aaa.backend.auth.CurrentUserContext;
+import com.aaa.backend.contract.appointment.AppointmentCommandService;
 import com.aaa.backend.dto.ScheduleSaveDTO;
 import com.aaa.backend.service.ScheduleService;
 import com.aaa.backend.vo.ScheduleQuery;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,9 +35,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminScheduleController {
 
     private final ScheduleService scheduleService;
+    private final AppointmentCommandService appointments;
+    private final CurrentUserContext currentUser;
 
-    public AdminScheduleController(ScheduleService scheduleService) {
+    public AdminScheduleController(ScheduleService scheduleService, AppointmentCommandService appointments,
+                                   CurrentUserContext currentUser) {
         this.scheduleService = scheduleService;
+        this.appointments = appointments;
+        this.currentUser = currentUser;
+    }
+
+    public record StopRequest(@NotBlank @Size(max = 200) String reason) {}
+    public record StopResult(int cancelledAppointments) {}
+
+    @PutMapping("/{id}/stop")
+    public ApiResponse<StopResult> stop(@PathVariable Long id, @Valid @RequestBody StopRequest request) {
+        int cancelled = appointments.stopSchedule(id, request.reason(), currentUser.requireUserId());
+        return ApiResponse.success(new StopResult(cancelled));
     }
 
     @GetMapping

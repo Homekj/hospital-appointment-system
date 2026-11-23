@@ -32,9 +32,9 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
                    s.schedule_date, s.time_slot,
                    a.patient_name, a.patient_phone, a.id_card, a.amount,
                    a.pay_method, a.pay_time, a.payment_deadline, a.status, a.remark,
-                   a.cancellation_type, a.cancellation_reason,
+                   a.cancellation_type, a.cancellation_reason, a.refund_status,
                    (a.status = 'unpaid' AND a.payment_deadline IS NOT NULL
-                       AND a.payment_deadline <= CURRENT_TIMESTAMP) AS payment_expired,
+                       AND CURRENT_TIMESTAMP >= a.payment_deadline) AS payment_expired,
                    p.id              AS prescription_id,
                    p.status          AS prescription_status,
                    COALESCE(p.total_amount, 0.00) AS prescription_amount,

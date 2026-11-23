@@ -19,6 +19,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -176,8 +177,9 @@ public class AppointmentService {
     }
 
     /** 支付：仅 unpaid 可支付；balance 支付的扣款、流水、状态更新在同一事务。 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AppointmentDetailVO pay(Long userId, Long appointmentId, String payMethod) {
+        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(appointmentId, userId);
         AppointmentDetailVO current = requireOwnedForUpdate(userId, appointmentId);
         AppointmentStatus status = AppointmentStatus.fromDatabaseValue(current.getStatus());
 
@@ -195,6 +197,7 @@ public class AppointmentService {
             throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, message);
         }
 
+        requireActiveSchedule(schedule);
         // 条件更新抢状态：并发下只有一个请求能拿到影响行数 1，杜绝重复扣款
         int rows = appointmentDao.markPaid(appointmentId, userId, payMethod);
         if (rows == 0) {
@@ -229,8 +232,9 @@ public class AppointmentService {
         return new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT, "支付已超时，请重新预约");
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void expireUnpaid(Long appointmentId) {
+        scheduleDao.selectByAppointmentForUpdate(appointmentId, null);
         AppointmentDetailVO locked = appointmentDao.lockByIdForUpdate(appointmentId);
         if (locked == null || appointmentDao.cancelExpiredPayment(appointmentId) != 1) {
             return;
@@ -241,8 +245,9 @@ public class AppointmentService {
     }
 
     /** 取消：条件更新防止重复取消；只有取消成功才释放号源、才退款。 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AppointmentDetailVO cancel(Long userId, Long appointmentId) {
+        scheduleDao.selectByAppointmentForUpdate(appointmentId, userId);
         AppointmentDetailVO current = requireOwnedForUpdate(userId, appointmentId);
         AppointmentStatus status = AppointmentStatus.fromDatabaseValue(current.getStatus());
         if (status == AppointmentStatus.CANCELLED) {
@@ -284,8 +289,9 @@ public class AppointmentService {
     }
 
     /** 签到：仅 pending 可签到，重复签到返回当前状态，不允许状态倒退。 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AppointmentDetailVO checkIn(Long userId, Long appointmentId) {
+        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(appointmentId, userId);
         AppointmentDetailVO current = requireOwnedForUpdate(userId, appointmentId);
         AppointmentStatus status = AppointmentStatus.fromDatabaseValue(current.getStatus());
         if (status == AppointmentStatus.CHECKED_IN) {
@@ -296,6 +302,7 @@ public class AppointmentService {
                     "仅已支付且未签到的预约可签到");
         }
 
+        requireActiveSchedule(schedule);
         int rows = sameDayCheckInOnly
                 ? appointmentDao.checkInOnScheduleDate(appointmentId, userId)
                 : appointmentDao.checkIn(appointmentId, userId);
@@ -342,6 +349,12 @@ public class AppointmentService {
             throw new BusinessException(BusinessErrorCode.FORBIDDEN);
         }
         return requireOwned(userId, appointmentId);
+    }
+
+    private static void requireActiveSchedule(Schedule schedule) {
+        if (schedule == null || !Integer.valueOf(1).equals(schedule.getStatus())) {
+            throw new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT, "该排班已停诊，请查看预约详情");
+        }
     }
 
     private void decorate(AppointmentDetailVO vo, boolean includeIdCard) {

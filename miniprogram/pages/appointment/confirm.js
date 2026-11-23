@@ -41,6 +41,15 @@ Page({
         }
       })
     }
+    if (options.fromAppointment && /^[1-9][0-9]*$/.test(options.fromAppointment)) {
+      this.profileChosen = true
+      api.getAppointmentById(options.fromAppointment).then(source => {
+        if (source.cancellationType === 'schedule_stopped' && !this.data.patientProfileId
+            && !this.data.patientName && !this.data.patientPhone) {
+          this.setData({ patientName: source.patientName || '', patientPhone: source.patientPhone || '' })
+        }
+      }).catch(() => toast('无法加载原就诊人信息，请重新填写'))
+    }
     this.slot = {
       doctorId: Number(options.doctorId),
       scheduleDate: options.scheduleDate || '',

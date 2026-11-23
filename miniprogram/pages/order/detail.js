@@ -4,6 +4,14 @@ const { toOrder } = require('../../utils/adapter')
 const { formatDateTime, formatFee } = require('../../utils/format')
 const { PAY_METHODS, mockChannelPay, needsPayDrawer } = require('../../utils/pay')
 const toast = require('../../utils/toast')
+const { goDeptTab } = require('../../utils/tab')
+
+const REFUND_TEXT = {
+  not_required: '未支付，无需退款',
+  balance_refunded: '已退回账户余额',
+  mock_refunded: '已登记模拟退款',
+  contact_hospital: '请联系医院确认'
+}
 
 Page({
   data: {
@@ -78,7 +86,8 @@ Page({
           payDrawerVisible: order.canPay && this.data.payDrawerVisible,
           detailItems: items,
           feeText: formatFee(order.fee),
-          rxFeeText: formatFee(order.prescriptionAmount)
+          rxFeeText: formatFee(order.prescriptionAmount),
+          refundText: REFUND_TEXT[order.refundStatus] || ''
         })
       })
       .catch((err) => { if (!silent) toast(err.message || '无法刷新预约详情') })
@@ -163,7 +172,15 @@ Page({
         wx.showToast({ title: '签到成功', icon: 'success' })
         this.loadOrder(order.id)
       })
-      .catch((err) => toast(err.message || '签到失败'))
+      .catch((err) => {
+        toast(err.message || '签到失败')
+        this.loadOrder(order.id, true)
+      })
+  },
+
+  onRebook() {
+    const { order } = this.data
+    goDeptTab({ deptId: order.departmentId, keyword: '', fromAppointment: order.id })
   },
 
   onViewRecord() {

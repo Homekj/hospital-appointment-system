@@ -14,9 +14,12 @@ import java.time.LocalDate;
 public interface ScheduleDao extends BaseMapper<Schedule> {
     IPage<ScheduleVO> pageScheduleWithNames(Page<?> page, @Param("query") ScheduleQuery query);
 
-    /** 删除前按真实预约记录校验，不只依赖 booked_count 计数 */
-    @Select("SELECT COUNT(*) FROM appointment WHERE schedule_id = #{scheduleId} AND status <> 'cancelled'")
-    Long countActiveAppointment(@Param("scheduleId") Long scheduleId);
+    @Select("SELECT * FROM schedule WHERE id = #{id} FOR UPDATE")
+    Schedule lockById(@Param("id") Long id);
+
+    /** 已取消预约仍需引用排班，以展示原就诊安排。 */
+    @Select("SELECT COUNT(*) FROM appointment WHERE schedule_id = #{scheduleId}")
+    long countAppointments(@Param("scheduleId") Long scheduleId);
 
     /**
      * 修改排班时检查唯一键 (doctor_id, schedule_date, time_slot) 是否已被其他记录占用，

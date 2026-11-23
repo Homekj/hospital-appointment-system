@@ -1,6 +1,8 @@
 package com.aaa.backend.service.serviceimpl;
 
 import com.aaa.backend.common.Result;
+import com.aaa.backend.auth.CurrentUserContext;
+import com.aaa.backend.contract.appointment.AppointmentCommandService;
 import com.aaa.backend.dao.DoctorDao;
 import com.aaa.backend.dao.ScheduleDao;
 import com.aaa.backend.dto.ScheduleBatchDTO;
@@ -43,6 +45,10 @@ public class ScheduleServiceImpl implements ScheduleService {
     private ScheduleDao scheduleDao;
     @Autowired
     private DoctorDao doctorDao;
+    @Autowired
+    private AppointmentCommandService appointmentCommands;
+    @Autowired
+    private CurrentUserContext currentUser;
 
     @Override
     public Result pageQuery(ScheduleQuery query) {
@@ -107,22 +113,17 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result delete(Long id) {
         if (id == null) {
             return Result.error("排班ID不能为空");
         }
-        Schedule schedule = scheduleDao.selectById(id);
+        Schedule schedule = scheduleDao.lockById(id);
         if (schedule == null) {
             return Result.error("排班记录不存在");
         }
-        // 只要有人预约了，坚决不让物理删除
-        if (schedule.getBookedCount() != null && schedule.getBookedCount() > 0) {
-            return Result.error("该排班已有患者预约，无法删除！请使用【停诊】功能。");
-        }
-        // 再按真实预约表兜底，防止 booked_count 与实际预约不一致时误删
-        Long appointmentCount = scheduleDao.countActiveAppointment(id);
-        if (appointmentCount != null && appointmentCount > 0) {
-            return Result.error("该排班存在有效预约记录，无法删除！请使用【停诊】功能。");
+        if (scheduleDao.countAppointments(id) > 0) {
+            return Result.error("该排班已有预约历史，请使用停诊操作");
         }
         return scheduleDao.deleteById(id) > 0
                 ? Result.ok("删除成功")
@@ -137,6 +138,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (status == null || (status != 0 && status != 1)) {
             return Result.error("状态只能是 0(停诊) 或 1(正常)");
         }
+        if (status == 0) {
+            int cancelled = appointmentCommands.stopSchedule(id, "医院临时停诊", currentUser.requireUserId());
+            return Result.ok("已停诊，已处理 " + cancelled + " 笔预约");
+        }
         if (scheduleDao.selectById(id) == null) {
             return Result.error("排班记录不存在");
         }
@@ -146,10 +151,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (scheduleDao.updateById(patch) <= 0) {
             return Result.error("状态更新失败");
         }
-        return Result.ok(status == 0 ? "已停诊" : "已恢复");
+        return Result.ok("已恢复");
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result update(ScheduleSaveDTO dto) {
         if (dto == null || dto.getId() == null) {
             return Result.error("排班ID不能为空");
@@ -158,9 +164,13 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (feeError != null) {
             return Result.error(feeError);
         }
-        Schedule existing = scheduleDao.selectById(dto.getId());
+        Schedule existing = scheduleDao.lockById(dto.getId());
         if (existing == null) {
             return Result.error("排班记录不存在");
+        }
+
+        if (dto.getStatus() != null && !dto.getStatus().equals(existing.getStatus())) {
+            return Result.error("请在排班列表中使用停诊或恢复操作");
         }
 
         // 防超卖核心校验
@@ -194,6 +204,12 @@ public class ScheduleServiceImpl implements ScheduleService {
         Long finalDoctorId = dto.getDoctorId() != null ? dto.getDoctorId() : existing.getDoctorId();
         LocalDate finalDate = dto.getScheduleDate() != null ? dto.getScheduleDate() : existing.getScheduleDate();
         String finalSlot = dto.getTimeSlot() != null ? dto.getTimeSlot() : existing.getTimeSlot();
+        boolean changesVisit = !Objects.equals(finalDoctorId, existing.getDoctorId())
+                || !Objects.equals(finalDate, existing.getScheduleDate())
+                || !Objects.equals(finalSlot, existing.getTimeSlot());
+        if (changesVisit && scheduleDao.countAppointments(dto.getId()) > 0) {
+            return Result.error("已有预约记录的排班不能直接更换医生、日期或时段，请停诊并新建排班");
+        }
         Long conflict = scheduleDao.countConflict(finalDoctorId, finalDate, finalSlot, dto.getId());
         if (conflict != null && conflict > 0) {
             return Result.error("该医生在当天的该时段已有排班，请勿重复添加！");

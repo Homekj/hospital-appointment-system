@@ -23,6 +23,7 @@ function goDeptTab(options = {}) {
   if ('keyword' in options) {
     app.globalData.pendingKeyword = (options.keyword || '').trim()
   }
+  app.globalData.pendingRebooking = options.fromAppointment || ''
   wx.switchTab({ url: '/pages/schedule/list' })
 }
 

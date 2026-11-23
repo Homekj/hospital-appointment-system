@@ -81,6 +81,7 @@
           </el-col>
           <el-col v-if="detail.status === 'in_consultation'" :span="24"><p>医生已叫号，请按现场指引前往诊室。</p></el-col>
           <el-col v-if="detail.cancellationReason" :span="24"><p><strong>取消原因</strong>{{ detail.cancellationReason }}</p></el-col>
+          <el-col v-if="detail.refundStatus" :span="24"><p><strong>退款结果</strong>{{ refundText(detail.refundStatus) }}</p></el-col>
           <el-col v-if="detail.status === 'unpaid' && detail.paymentDeadline" :span="24">
             <p><strong>支付截止</strong>{{ detail.paymentDeadline }}<span v-if="detail.paymentExpired">（已超时，等待释放号源）</span></p>
           </el-col>
@@ -88,6 +89,7 @@
         </el-row>
       </div>
       <span slot="footer">
+        <el-button v-if="detail.cancellationType === 'schedule_stopped'" type="primary" @click="rebook">重新预约</el-button>
         <el-button v-if="detail.id" icon="el-icon-refresh" :loading="detailLoading" @click="loadDetail(detail.id)">刷新</el-button>
         <el-button type="primary" @click="detailVisible = false">关闭</el-button>
       </span>
@@ -144,6 +146,17 @@ export default {
   },
   methods: {
     payMethodText, statusTagType,
+    refundText(status) {
+      return {
+        not_required: '未支付，无需退款',
+        balance_refunded: '已退回账户余额',
+        mock_refunded: '已登记模拟退款',
+        contact_hospital: '请联系医院确认'
+      }[status] || ''
+    },
+    rebook() {
+      this.$router.push({ path: '/patient/book', query: { fromAppointment: this.detail.id } })
+    },
     defaultQuery() { return { status: '' } },
     fetchList(params) { return patientApi.appointments(params) },
     saveData() { return Promise.resolve() },
@@ -188,7 +201,7 @@ export default {
     checkIn(row) {
       patientApi.checkIn(row.id)
         .then(() => { this.$message.success('签到成功'); this.loadData(); this.showDetail(row) })
-        .catch(() => {})
+        .catch(() => { this.loadData(); this.showDetail(row) })
     },
     goPrescription(row) {
       this.$router.push({ path: '/patient/clinical', query: { appointmentId: row.id } })

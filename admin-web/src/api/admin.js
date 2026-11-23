@@ -52,6 +52,7 @@ export const scheduleApi = {
   create: data => request.post('/admin/schedules', data),
   update: (id, data) => request.put(`/admin/schedules/${id}`, data),
   status: (id, status) => request.put(`/admin/schedules/${id}/status`, { status }),
+  stop: (id, reason) => request.put('/admin/schedules/' + id + '/stop', { reason }),
   batch: data => request.post('/admin/schedules/batch', data),
   remove: id => request.delete(`/admin/schedule/delete/${id}`, legacy)
 }

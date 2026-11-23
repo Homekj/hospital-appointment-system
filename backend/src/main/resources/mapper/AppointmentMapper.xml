@@ -86,7 +86,8 @@
     <!-- 条件更新：当前状态不匹配时影响行数为 0，用来挡并发重复操作 -->
     <update id="updateStatusIfMatch">
         UPDATE appointment
-        SET status = #{toStatus}, update_time = NOW()
+        SET status = #{toStatus}, update_time = NOW(),
+            check_in_time = CASE WHEN #{toStatus} = 'checked_in' THEN NOW(6) ELSE check_in_time END
         WHERE id = #{id} AND status = #{fromStatus}
         <if test="fromStatus == 'unpaid' and toStatus == 'pending'">
             AND (payment_deadline IS NULL OR payment_deadline &gt; CURRENT_TIMESTAMP)

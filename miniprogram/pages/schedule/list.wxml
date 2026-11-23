@@ -8,6 +8,7 @@
       bind:search="onSearch"
     />
   </view>
+  <van-cell wx:if="{{ fromAppointment }}" title="重新预约" label="请选择医生和新的时段" value="退出" bind:click="clearRebooking" />
   <view class="schedule-list__body">
     <dept-sidebar
       list="{{ departments }}"

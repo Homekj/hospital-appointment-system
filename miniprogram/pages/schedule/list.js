@@ -16,7 +16,8 @@ Page({
     doctors: [],
     keyword: '',
     isGlobalSearch: false,
-    loading: true
+    loading: true,
+    fromAppointment: ''
   },
 
   onLoad(options) {
@@ -35,18 +36,22 @@ Page({
 
   applyPendingTabParams() {
     const app = getApp()
-    const { pendingDeptId, pendingKeyword } = app.globalData
+    const { pendingDeptId, pendingKeyword, pendingRebooking } = app.globalData
     const updates = {}
 
     if (pendingDeptId) {
       updates.activeDeptId = pendingDeptId
       app.globalData.pendingDeptId = 0
     }
-    if (pendingKeyword) {
+    if (pendingKeyword || pendingRebooking) {
       updates.keyword = pendingKeyword
       app.globalData.pendingKeyword = ''
     }
 
+    if (pendingRebooking !== undefined) {
+      updates.fromAppointment = pendingRebooking
+      delete app.globalData.pendingRebooking
+    }
     if (!Object.keys(updates).length) return
 
     this.setData(updates, () => {
@@ -159,9 +164,18 @@ Page({
     })
   },
 
+  clearRebooking() {
+    this.setData({ fromAppointment: '' })
+  },
+
   onDoctorTap(e) {
     const id = Number(e.detail && e.detail.id)
     if (!Number.isInteger(id) || id <= 0) return
-    wx.navigateTo({ url: `/pages/schedule/detail?doctorId=${id}` })
+    const source = this.data.fromAppointment
+    const suffix = source ? '&fromAppointment=' + encodeURIComponent(source) : ''
+    wx.navigateTo({
+      url: '/pages/schedule/detail?doctorId=' + id + suffix,
+      success: () => this.clearRebooking()
+    })
   }
 })

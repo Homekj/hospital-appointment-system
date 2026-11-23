@@ -44,6 +44,7 @@ public class AppointmentDetailVO {
     private Boolean paymentExpired;
     private String cancellationType;
     private String cancellationReason;
+    private String refundStatus;
 
     private String status;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

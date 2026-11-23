@@ -13,6 +13,7 @@ import com.aaa.backend.contract.appointment.AppointmentPageQuery;
 import com.aaa.backend.contract.appointment.AppointmentQueryService;
 import com.aaa.backend.contract.appointment.AppointmentSummary;
 import com.aaa.backend.entity.BalanceLog;
+import com.aaa.backend.entity.Schedule;
 import com.aaa.backend.entity.UserNotification;
 import com.aaa.backend.entity.enums.AppointmentStatus;
 import com.aaa.backend.notification.dao.UserNotificationDao;
@@ -20,6 +21,7 @@ import com.aaa.backend.wallet.dao.BalanceLogDao;
 import com.aaa.backend.wallet.dao.WalletUserDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -141,62 +143,102 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
 
     // ------------------------------------------------------------ 写契约
 
-    /**
-     * 管理员取消：条件更新抢状态，取消成功才退号源、才退款，全部在同一事务。
-     * operatorUserId 只用于审计日志，不参与数据归属判断。
-     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void cancelByAdmin(Long appointmentId, Long operatorUserId) {
+        scheduleDao.selectByAppointmentForUpdate(appointmentId, null);
         if (contractDao.lockStatusForUpdate(appointmentId) == null) {
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_NOT_FOUND);
         }
-        AppointmentDetailVO vo = appointmentDao.selectDetail(appointmentId);
-        if (vo == null) {
+        AppointmentDetailVO appointment = appointmentDao.selectDetail(appointmentId);
+        if (appointment == null) {
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_NOT_FOUND);
         }
-        AppointmentStatus status = AppointmentStatus.fromDatabaseValue(vo.getStatus());
+        AppointmentStatus status = AppointmentStatus.fromDatabaseValue(appointment.getStatus());
         if (status == AppointmentStatus.CANCELLED) {
-            return; // 重复取消幂等，绝不二次退号 / 二次退款
+            return;
         }
         if (!status.canCancelByAdmin()) {
-            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE,
-                    "当前预约状态不允许管理员取消");
+            throw new BusinessException(BusinessErrorCode.INVALID_APPOINTMENT_STATE, "当前预约状态不允许管理员取消");
         }
+        closeByAdmin(appointment, "admin_cancelled", "预约已被管理员取消");
+        log.info("管理员取消预约: appointmentId={}, operatorUserId={}", appointmentId, operatorUserId);
+    }
 
-        int rows = contractDao.cancelByAdmin(appointmentId);
-        if (rows == 0) {
-            AppointmentDetailVO refreshed = appointmentDao.selectDetail(appointmentId);
-            if (refreshed != null
-                    && AppointmentStatus.fromDatabaseValue(refreshed.getStatus()) == AppointmentStatus.CANCELLED) {
-                return;
-            }
+    @Override
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public int stopSchedule(Long scheduleId, String reason, Long operatorUserId) {
+        Schedule schedule = scheduleDao.selectByIdForUpdate(scheduleId);
+        if (schedule == null) {
+            throw new BusinessException(BusinessErrorCode.NOT_FOUND, "排班不存在");
+        }
+        scheduleDao.markStopped(scheduleId);
+        List<AppointmentDetailVO> waiting = contractDao.lockWaitingForSchedule(scheduleId);
+        for (AppointmentDetailVO appointment : waiting) {
+            closeByAdmin(appointment, "schedule_stopped", reason.strip());
+        }
+        log.info("管理员停诊: scheduleId={}, operatorUserId={}, cancelledCount={}", scheduleId, operatorUserId, waiting.size());
+        return waiting.size();
+    }
+
+    private void closeByAdmin(AppointmentDetailVO appointment, String type, String reason) {
+        String refundStatus = refundStatusFor(appointment);
+        Long id = appointment.getId();
+        if (contractDao.cancelByAdmin(id, type, reason, refundStatus) != 1) {
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT);
         }
-
-        scheduleDao.releaseBookedCount(vo.getScheduleId());
-        if (status == AppointmentStatus.PENDING && "balance".equals(vo.getPayMethod())) {
-            BigDecimal amount = vo.getAmount() == null ? BigDecimal.ZERO : vo.getAmount();
-            walletUserDao.addBalance(vo.getUserId(), amount);
-            BigDecimal after = walletUserDao.selectBalance(vo.getUserId());
-            BalanceLog logEntry = new BalanceLog();
-            logEntry.setUserId(vo.getUserId());
-            logEntry.setType("order_refund");
-            logEntry.setAmount(amount);
-            logEntry.setBalanceAfter(after);
-            logEntry.setOrderId(appointmentId);
-            logEntry.setPayMethod("balance");
-            logEntry.setRemark("管理员取消预约，挂号费原路退回余额");
-            balanceLogDao.insert(logEntry);
+        scheduleDao.releaseBookedCount(appointment.getScheduleId());
+        if ("balance_refunded".equals(refundStatus)) {
+            returnRegistrationBalance(appointment);
         }
-        log.info("管理员取消预约: appointmentId={}, operatorUserId={}", appointmentId, operatorUserId);
-        notifyQuietly(vo.getUserId(), "appointment_cancelled", "预约已被管理员取消", "如需重新就诊请重新预约", appointmentId);
+        String refundMessage = switch (refundStatus) {
+            case "balance_refunded" -> "挂号费已退回账户余额。";
+            case "mock_refunded" -> "挂号费已登记模拟退款。";
+            case "contact_hospital" -> "请联系医院确认挂号费处理方式。";
+            default -> "预约未支付，无需退款。";
+        };
+        boolean stopped = "schedule_stopped".equals(type);
+        String message = (stopped ? "停诊原因：" + reason + "。" : "")
+                + refundMessage + "如需就诊，请从预约详情重新选号。";
+        if (stopped) {
+            insertNotification(appointment.getUserId(), "appointment_schedule_stopped", "停诊通知", message, id);
+        } else {
+            notifyQuietly(appointment.getUserId(), "appointment_cancelled", reason, message, id);
+        }
+    }
+
+    private static String refundStatusFor(AppointmentDetailVO appointment) {
+        if (AppointmentStatus.fromDatabaseValue(appointment.getStatus()) == AppointmentStatus.UNPAID) {
+            return "not_required";
+        }
+        String method = appointment.getPayMethod();
+        if ("balance".equals(method)) return "balance_refunded";
+        if ("wechat".equals(method) || "alipay".equals(method)) return "mock_refunded";
+        return "contact_hospital";
+    }
+
+    private void returnRegistrationBalance(AppointmentDetailVO appointment) {
+        BigDecimal amount = appointment.getAmount();
+        Long userId = appointment.getUserId();
+        if (amount == null || amount.signum() < 0 || walletUserDao.addBalance(userId, amount) != 1) {
+            throw new BusinessException(BusinessErrorCode.CONFLICT, "挂号费或余额账户异常，取消未完成");
+        }
+        BalanceLog entry = new BalanceLog();
+        entry.setUserId(userId);
+        entry.setType("order_refund");
+        entry.setAmount(amount);
+        entry.setBalanceAfter(walletUserDao.selectBalance(userId));
+        entry.setOrderId(appointment.getId());
+        entry.setPayMethod("balance");
+        entry.setRemark("管理员取消预约，挂号费退回余额");
+        balanceLogDao.insert(entry);
     }
 
     /** 开始接诊：checked_in -> in_consultation，重复调用幂等。 */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void startConsultation(Long appointmentId, Long doctorId) {
+        scheduleDao.selectByAppointmentForUpdate(appointmentId, null);
         if (contractDao.lockStatusForUpdate(appointmentId) == null) {
             throw new BusinessException(BusinessErrorCode.APPOINTMENT_NOT_FOUND,
                     "预约不存在或不属于当前医生");
@@ -311,17 +353,21 @@ public class AppointmentContractService implements AppointmentQueryService, Appo
     /** 站内通知属于附属动作，失败不得回滚上述状态流转。 */
     private void notifyQuietly(Long userId, String type, String title, String content, Long bizId) {
         try {
-            UserNotification notification = new UserNotification();
-            notification.setUserId(userId);
-            notification.setType(type);
-            notification.setTitle(title);
-            notification.setContent(content);
-            notification.setBizType("appointment");
-            notification.setBizId(bizId);
-            notification.setReadFlag(0);
-            notificationDao.insert(notification);
+            insertNotification(userId, type, title, content, bizId);
         } catch (Exception exception) {
             log.warn("业务通知写入失败（不影响核心事务）: bizId={}", bizId, exception);
         }
+    }
+
+    private void insertNotification(Long userId, String type, String title, String content, Long bizId) {
+        UserNotification notification = new UserNotification();
+        notification.setUserId(userId);
+        notification.setType(type);
+        notification.setTitle(title);
+        notification.setContent(content);
+        notification.setBizType("appointment");
+        notification.setBizId(bizId);
+        notification.setReadFlag(0);
+        notificationDao.insert(notification);
     }
 }

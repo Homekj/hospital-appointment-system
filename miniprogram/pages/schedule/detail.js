@@ -18,6 +18,7 @@ Page({
   },
 
   onLoad(options) {
+    this.fromAppointment = options.fromAppointment || ''
     const doctorId = Number(options.doctorId)
     if (!doctorId) {
       wx.showToast({ title: '参数错误', icon: 'none' })
@@ -77,7 +78,7 @@ Page({
       return
     }
     wx.navigateTo({
-      url: `/pages/appointment/confirm?doctorId=${doctor.id}&scheduleDate=${selectedDate}&timeSlot=${selectedTime}&scheduleId=${selectedScheduleId}`
+      url: `/pages/appointment/confirm?doctorId=${doctor.id}&scheduleDate=${selectedDate}&timeSlot=${selectedTime}&scheduleId=${selectedScheduleId}${this.fromAppointment ? '&fromAppointment=' + encodeURIComponent(this.fromAppointment) : ''}`
     })
   }
 })

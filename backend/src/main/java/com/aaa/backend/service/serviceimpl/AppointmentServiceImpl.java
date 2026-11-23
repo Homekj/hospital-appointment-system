@@ -1,9 +1,13 @@
 package com.aaa.backend.service.serviceimpl;
 
 import com.aaa.backend.common.Result;
+import com.aaa.backend.auth.CurrentUserContext;
+import com.aaa.backend.catalog.dao.ScheduleDao;
+import com.aaa.backend.contract.appointment.AppointmentCommandService;
 import com.aaa.backend.dao.AppointmentDao;
 import com.aaa.backend.dto.AppointmentStatusDTO;
 import com.aaa.backend.entity.Appointment;
+import com.aaa.backend.entity.Schedule;
 import com.aaa.backend.entity.enums.AppointmentStatus;
 import com.aaa.backend.service.AppointmentService;
 import com.aaa.backend.vo.AppointmentQuery;
@@ -11,10 +15,9 @@ import com.aaa.backend.vo.AppointmentStatusOption;
 import com.aaa.backend.vo.AppointmentVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -30,7 +33,6 @@ import java.util.stream.Collectors;
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
 
-    private static final Logger log = LoggerFactory.getLogger(AppointmentServiceImpl.class);
     private static final int MAX_PAGE_SIZE = 100;
     private static final int MAX_EXPORT_ROWS = 10000;
 
@@ -52,6 +54,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Autowired
     private AppointmentDao appointmentDao;
+    @Autowired
+    private ScheduleDao scheduleDao;
+    @Autowired
+    private AppointmentCommandService commandService;
+    @Autowired
+    private CurrentUserContext currentUser;
 
     @Override
     public String validateQuery(AppointmentQuery query) {
@@ -129,64 +137,29 @@ public class AppointmentServiceImpl implements AppointmentService {
         return Result.ok(vo);
     }
 
-    /**
-     * 取消预约：状态改为 cancelled，并在同一事务里原子回滚号源。
-     *
-     * <p>号源一致性三道保护：
-     * <ol>
-     *     <li>先按当前状态做条件 UPDATE，并发下只有一个请求能成功，不会重复减号源；</li>
-     *     <li>回滚用 {@code booked_count = booked_count - 1 ... AND booked_count > 0}，
-     *         不会减成负数，也不需要读出来再写回；</li>
-     *     <li>两条写操作同处一个事务，任一条抛异常一起回滚。</li>
-     * </ol>
-     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Result cancel(Long id) {
         if (id == null) {
             return Result.error("预约ID不能为空");
         }
-        Appointment appointment = appointmentDao.selectById(id);
-        if (appointment == null) {
-            return Result.error("预约记录不存在");
-        }
-        AppointmentStatus current = parseStatus(appointment.getStatus());
-        if (current == null) {
-            return Result.error("预约状态数据异常：" + appointment.getStatus());
-        }
-        if (current == AppointmentStatus.CANCELLED) {
-            return Result.error("该预约已取消，请勿重复操作");
-        }
-        if (!current.canTransitionTo(AppointmentStatus.CANCELLED)) {
-            return Result.error("当前状态【" + labelOf(current.value()) + "】不允许取消，允许的流转："
-                    + transitionsOf(current.value()));
-        }
-
-        int updated = appointmentDao.updateStatusIfMatch(
-                id, current.value(), AppointmentStatus.CANCELLED.value());
-        if (updated == 0) {
-            return Result.error("预约状态已变更，请刷新后重试");
-        }
-
-        int decreased = appointmentDao.decreaseBookedCount(appointment.getScId());
-        if (decreased == 0) {
-            // 数据本来就不一致时宁可少减，也绝不把 booked_count 写成负数
-            log.warn("取消预约 {} 时号源未回滚：schedule_id={} 不存在或 booked_count 已为 0",
-                    id, appointment.getScId());
-        }
-        return Result.ok("取消成功，号源已回滚");
+        commandService.cancelByAdmin(id, currentUser.requireUserId());
+        return Result.ok("取消成功，号源已释放");
     }
 
     /** 签到：严格限定 pending → checked_in */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public Result checkIn(Long id) {
         if (id == null) {
             return Result.error("预约ID不能为空");
         }
+        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(id, null);
         Appointment appointment = appointmentDao.selectById(id);
         if (appointment == null) {
             return Result.error("预约记录不存在");
+        }
+        if (schedule == null || !Integer.valueOf(1).equals(schedule.getStatus())) {
+            return Result.error("该排班已停诊");
         }
         AppointmentStatus current = parseStatus(appointment.getStatus());
         if (current == null) {
@@ -210,7 +183,7 @@ public class AppointmentServiceImpl implements AppointmentService {
      * 否则会绕过号源回滚，造成 schedule.booked_count 与真实预约数永久不一致。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public Result changeStatus(Long id, AppointmentStatusDTO dto) {
         if (id == null) {
             return Result.error("预约ID不能为空");
@@ -226,9 +199,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (target == AppointmentStatus.CANCELLED) {
             return Result.error("取消预约需要回滚号源，请使用 PUT /{id}/cancel 接口，不能通过改状态直接取消");
         }
+        Schedule schedule = scheduleDao.selectByAppointmentForUpdate(id, null);
         Appointment appointment = appointmentDao.selectById(id);
         if (appointment == null) {
             return Result.error("预约记录不存在");
+        }
+        if ((target == AppointmentStatus.PENDING || target == AppointmentStatus.CHECKED_IN
+                || target == AppointmentStatus.IN_CONSULTATION)
+                && (schedule == null || !Integer.valueOf(1).equals(schedule.getStatus()))) {
+            return Result.error("该排班已停诊");
         }
         AppointmentStatus current = parseStatus(appointment.getStatus());
         if (current == null) {

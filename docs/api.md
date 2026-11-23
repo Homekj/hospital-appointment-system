@@ -883,6 +883,8 @@ WHERE id = ?
 - `wechat`、`alipay` 为模拟支付，记录模拟退款说明，不调用真实退款网关。
 - `checked_in`、`in_consultation`、`pending_rx_pay`、`completed`、`cancelled` 不允许患者自行取消。
 
+当 cancellationType 为 schedule_stopped 时，预约详情包含停诊原因和 refundStatus。退款结果包括 not_required（未支付）、balance_refunded（余额已退回）、mock_refunded（已登记模拟退款）、contact_hospital（需向医院确认）。两端可从原订单带入姓名和电话，新预约按所选排班的实时号源及费用创建。
+
 ### 8.6 到院签到
 
 `PUT /api/appointments/{id}/check-in`
@@ -1333,6 +1335,10 @@ WHERE id = ?
 - 停诊不等于取消已有预约，管理员必须分别处理已有预约。
 
 排班新增、编辑、批量生成可传 registrationFee，范围 0.01 至 10000.00 元，最多两位小数。新增省略时默认 20.00 元，编辑省略时沿用当前价格，历史订单金额以各自快照为准。
+
+停诊使用 PUT /api/admin/schedules/{id}/stop，提交 reason（1 至 200 字符），返回 cancelledAppointments。停诊、取消该班次的未付、待就诊、已签到预约、释放号源、登记退款及站内通知同一事务处理。已开始接诊的预约继续完成。恢复只重新开放排班，已取消的订单可由患者重新预约。
+
+旧状态接口切换到停诊时也执行此流程，使用默认原因。已有停诊记录仍有未接诊预约时，可在排班列表补做处理。有预约历史的排班须保留原医生、日期和时段，需要调整时可停诊并另建排班。
 
 ### 12.5 预约管理
 

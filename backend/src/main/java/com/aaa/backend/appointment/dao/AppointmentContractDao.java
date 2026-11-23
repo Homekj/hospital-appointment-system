@@ -1,6 +1,7 @@
 package com.aaa.backend.appointment.dao;
 
 import com.aaa.backend.appointment.vo.AppointmentSummaryRow;
+import com.aaa.backend.appointment.vo.AppointmentDetailVO;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -91,13 +92,26 @@ public interface AppointmentContractDao {
     @Select("SELECT COUNT(*) FROM consultation_record WHERE appointment_id = #{id}")
     long countConsultation(@Param("id") Long id);
 
+    @Select("""
+            SELECT id, user_id, schedule_id, status, amount, pay_method
+              FROM appointment
+             WHERE schedule_id = #{scheduleId}
+               AND status IN ('unpaid', 'pending', 'confirmed', 'checked_in')
+             ORDER BY user_id, id
+             FOR UPDATE
+            """)
+    List<AppointmentDetailVO> lockWaitingForSchedule(@Param("scheduleId") Long scheduleId);
+
     /** 管理员取消：仅未支付/已支付/已签到可取消；checked_in 之后的状态不允许。 */
     @Update("""
-            UPDATE appointment SET status = 'cancelled'
+            UPDATE appointment
+               SET status = 'cancelled', cancellation_type = #{type},
+                   cancellation_reason = #{reason}, refund_status = #{refundStatus}
              WHERE id = #{id}
                AND status IN ('unpaid', 'pending', 'confirmed', 'checked_in')
             """)
-    int cancelByAdmin(@Param("id") Long id);
+    int cancelByAdmin(@Param("id") Long id, @Param("type") String type, @Param("reason") String reason,
+                      @Param("refundStatus") String refundStatus);
 
     /** 开始接诊：checked_in -> in_consultation，且必须由该排班所属医生操作。 */
     @Update("""
@@ -107,7 +121,7 @@ public interface AppointmentContractDao {
                AND a.status = 'checked_in'
                AND EXISTS (
                     SELECT 1 FROM schedule s
-                     WHERE s.id = a.schedule_id AND s.doctor_id = #{doctorId}
+                     WHERE s.id = a.schedule_id AND s.doctor_id = #{doctorId} AND s.status = 1
                )
             """)
     int startConsultation(@Param("id") Long id, @Param("doctorId") Long doctorId);

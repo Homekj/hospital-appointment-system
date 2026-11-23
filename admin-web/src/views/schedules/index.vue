@@ -53,13 +53,15 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" :fixed="$root.isMobile ? false : 'right'">
+        <el-table-column label="操作" width="255" :fixed="$root.isMobile ? false : 'right'">
           <template slot-scope="{ row }">
             <el-button type="text" icon="el-icon-edit" @click="openEdit(row)">编辑</el-button>
-            <el-button type="text" :icon="row.status === 1 ? 'el-icon-turn-off' : 'el-icon-open'" @click="toggle(row)">
+            <el-button type="text" :disabled="stopping" :icon="row.status === 1 ? 'el-icon-turn-off' : 'el-icon-open'" @click="toggle(row)">
               {{ row.status === 1 ? '停诊' : '恢复' }}
             </el-button>
-            <el-button type="text" icon="el-icon-delete" class="danger-link" @click="confirmRemove(row, `${row.doctorName} ${row.scheduleDate} ${row.timeSlot}`)">删除</el-button>
+            <el-button v-if="row.status === 0 && row.awaitingVisitCount > 0" type="text" :disabled="stopping"
+              class="danger-link" @click="toggle(row, true)">处理遗留预约</el-button>
+            <el-button v-else type="text" icon="el-icon-delete" class="danger-link" @click="confirmRemove(row, `${row.doctorName} ${row.scheduleDate} ${row.timeSlot}`)">删除</el-button>
           </template>
         </el-table-column>
         <template slot="empty">暂无排班数据</template>
@@ -100,7 +102,7 @@
         <el-form-item label="挂号费（元）" prop="registrationFee">
           <el-input-number v-model="form.registrationFee" :min="0.01" :max="10000" :precision="2" :step="1" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item v-if="dialogMode === 'create'" label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio :label="1">正常</el-radio>
             <el-radio :label="0">停诊</el-radio>
@@ -159,6 +161,7 @@ export default {
       doctorOptions: [],
       batchVisible: false,
       batching: false,
+      stopping: false,
       batchForm: { doctorIds: [], dateRange: [], timeSlots: [], totalQuota: 5, registrationFee: 20 },
       rules: {
         doctorId: [{ required: true, message: '请选择医生', trigger: 'change' }],
@@ -182,7 +185,34 @@ export default {
     fetchList(params) { return scheduleApi.page(params) },
     saveData(form, isEdit, id) { return isEdit ? scheduleApi.update(id, form) : scheduleApi.create(form) },
     deleteData(row) { return scheduleApi.remove(row.id) },
-    toggle(row) { this.toggleStatus(row, scheduleApi.status) },
+    async toggle(row, processStopped = false) {
+      if (this.stopping) return
+      this.stopping = true
+      try {
+        if (row.status === 1 || processStopped) {
+          const { value } = await this.$prompt(
+            '请填写患者可见的停诊原因。尚未接诊的预约会取消，并按原支付方式处理退款和通知。',
+            '停诊 ' + row.doctorName + ' · ' + row.scheduleDate + ' ' + row.timeSlot,
+            {
+              type: 'warning',
+              confirmButtonText: '确认停诊',
+              inputType: 'textarea',
+              inputValidator: reason => Boolean(reason && reason.trim() && reason.trim().length <= 200) || '请输入 1 至 200 个字符'
+            }
+          )
+          const result = await scheduleApi.stop(row.id, value.trim())
+          this.$message.success('已停诊，已处理 ' + result.cancelledAppointments + ' 笔预约')
+        } else {
+          await scheduleApi.status(row.id, 1)
+          this.$message.success('已恢复排班')
+        }
+        this.loadData()
+      } catch (error) {
+        // 用户取消或请求拦截器已提示错误。
+      } finally {
+        this.stopping = false
+      }
+    },
     remain(row) {
       if (row.remainQuota !== undefined && row.remainQuota !== null) return row.remainQuota
       return Number(row.totalQuota || 0) - Number(row.bookedCount || 0)

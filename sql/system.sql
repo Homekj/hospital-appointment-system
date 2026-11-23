@@ -198,6 +198,7 @@ CREATE TABLE appointment (
     check_in_time DATETIME(6) DEFAULT NULL COMMENT '到院签到时间',
     cancellation_type VARCHAR(24) DEFAULT NULL,
     cancellation_reason VARCHAR(200) DEFAULT NULL,
+    refund_status VARCHAR(24) DEFAULT NULL,
     status        VARCHAR(20) NOT NULL DEFAULT 'unpaid' COMMENT 'unpaid/pending/checked_in/in_consultation/pending_rx_pay/completed/cancelled',
     remark        VARCHAR(200) DEFAULT NULL COMMENT '备注',
     create_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,

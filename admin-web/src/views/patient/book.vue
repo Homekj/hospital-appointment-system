@@ -144,9 +144,9 @@ function emptyProfile() {
   return { name: '', phone: '', relationship: '本人', defaultPatient: false }
 }
 
-function tomorrow() {
+function bookingDate(daysAhead) {
   const d = new Date()
-  d.setDate(d.getDate() + 1)
+  d.setDate(d.getDate() + daysAhead)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -166,7 +166,7 @@ export default {
       schedules: [],
       departmentId: '',
       doctorId: '',
-      scheduleDate: tomorrow(),
+      scheduleDate: bookingDate(1),
       scheduleId: '',
       loadingSchedules: false,
       form: { patientName: '', patientPhone: '', idCard: '', remark: '' },
@@ -203,13 +203,35 @@ export default {
     patientApi.patients().then(list => {
       this.profiles = list
       const defaultPatient = list.find(p => p.defaultPatient)
-      if (!this.form.patientName && !this.form.patientPhone && defaultPatient) {
+      if (!this.$route.query.fromAppointment && !this.form.patientName && !this.form.patientPhone && defaultPatient) {
         this.patientProfileId = defaultPatient.id
       }
     }).catch(() => {})
-    patientApi.departments().then(list => { this.departments = list || [] }).catch(() => {})
+    patientApi.departments().then(list => {
+      this.departments = list || []
+      if (this.$route.query.fromAppointment) return this.loadRebooking()
+    }).catch(() => {})
   },
   methods: {
+    async loadRebooking() {
+      const id = this.$route.query.fromAppointment
+      if (!/^[1-9][0-9]*$/.test(id)) return
+      const source = await patientApi.appointmentDetail(id)
+      if (source.cancellationType !== 'schedule_stopped') return
+      if (!this.form.patientName && !this.form.patientPhone && !this.patientProfileId) {
+        this.form.patientName = source.patientName
+        this.form.patientPhone = source.patientPhone
+      }
+      if (this.departmentId || !this.departments.some(d => d.id === source.departmentId)) return
+      this.departmentId = source.departmentId
+      const today = bookingDate(0)
+      this.scheduleDate = source.scheduleDate >= today ? source.scheduleDate : today
+      await this.onDepartmentChange()
+      if (this.departmentId === source.departmentId && !this.doctorId && this.doctors.some(d => d.id === source.doctorId)) {
+        this.doctorId = source.doctorId
+        this.loadSchedules()
+      }
+    },
     openProfiles() {
       this.editProfile()
       this.profilesVisible = true
@@ -264,20 +286,31 @@ export default {
       this.scheduleId = ''
       this.doctors = []
       this.schedules = []
-      if (!this.departmentId) return
-      patientApi.doctors({ departmentId: this.departmentId })
-        .then(list => { this.doctors = list || [] })
+      const departmentId = this.departmentId
+      if (!departmentId) return
+      return patientApi.doctors({ departmentId })
+        .then(list => {
+          if (this.departmentId === departmentId) this.doctors = list || []
+        })
         .catch(() => {})
     },
     loadSchedules() {
       this.scheduleId = ''
       this.schedules = []
       if (!this.doctorId || !this.scheduleDate) return
+      const requestId = this.scheduleRequest = (this.scheduleRequest || 0) + 1
+      const { doctorId, scheduleDate } = this
       this.loadingSchedules = true
-      patientApi.schedules({ doctorId: this.doctorId, scheduleDate: this.scheduleDate })
-        .then(list => { this.schedules = list || [] })
-        .catch(() => { this.schedules = [] })
-        .finally(() => { this.loadingSchedules = false })
+      patientApi.schedules({ doctorId, scheduleDate })
+        .then(list => {
+          if (this.scheduleRequest === requestId && this.doctorId === doctorId && this.scheduleDate === scheduleDate) {
+            this.schedules = list || []
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (this.scheduleRequest === requestId) this.loadingSchedules = false
+        })
     },
     submit() {
       if (this.submitting) return
