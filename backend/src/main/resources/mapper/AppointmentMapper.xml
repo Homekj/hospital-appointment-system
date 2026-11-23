@@ -88,6 +88,9 @@
         UPDATE appointment
         SET status = #{toStatus}, update_time = NOW()
         WHERE id = #{id} AND status = #{fromStatus}
+        <if test="fromStatus == 'unpaid' and toStatus == 'pending'">
+            AND (payment_deadline IS NULL OR payment_deadline &gt; CURRENT_TIMESTAMP)
+        </if>
     </update>
 
     <!-- 原子回滚号源，booked_count > 0 保证不会减成负数 -->

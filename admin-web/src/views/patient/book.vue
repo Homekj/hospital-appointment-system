@@ -122,6 +122,7 @@
           预约 <strong>#{{ created.id }}</strong> 已创建，当前状态为「待支付」。<br />
           应付金额：<strong style="color:#f56c6c;font-size:18px">{{ created.amount | money }}</strong>
         </p>
+        <p v-if="created.paymentDeadline" class="muted">请在 {{ created.paymentDeadline }} 前支付，超时后自动释放号源。</p>
         <el-radio-group v-model="payMethod">
           <el-radio v-for="m in PAY_METHODS" :key="m.value" :label="m.value" style="display:block;margin:8px 0">{{ m.label }}</el-radio>
         </el-radio-group>
@@ -300,7 +301,7 @@ export default {
         .finally(() => { this.submitting = false })
     },
     pay() {
-      if (!this.created) return
+      if (!this.created || this.paying) return
       this.paying = true
       patientApi.payAppointment(this.created.id, this.payMethod)
         .then(() => {
@@ -308,7 +309,12 @@ export default {
           this.payVisible = false
           this.$router.push('/patient/appointments')
         })
-        .catch(() => {})
+        .catch(() => patientApi.appointmentDetail(this.created.id).then(detail => {
+          if (detail.paymentExpired || detail.status !== 'unpaid') {
+            this.payVisible = false
+            this.$router.push('/patient/appointments')
+          }
+        }).catch(() => {}))
         .finally(() => { this.paying = false })
     },
     skipPay() {

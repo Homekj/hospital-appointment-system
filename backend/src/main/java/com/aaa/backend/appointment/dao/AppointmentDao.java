@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AppointmentDao extends BaseMapper<Appointment> {
@@ -30,7 +31,10 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
                    dep.location      AS department_location,
                    s.schedule_date, s.time_slot,
                    a.patient_name, a.patient_phone, a.id_card, a.amount,
-                   a.pay_method, a.pay_time, a.status, a.remark,
+                   a.pay_method, a.pay_time, a.payment_deadline, a.status, a.remark,
+                   a.cancellation_type, a.cancellation_reason,
+                   (a.status = 'unpaid' AND a.payment_deadline IS NOT NULL
+                       AND a.payment_deadline <= CURRENT_TIMESTAMP) AS payment_expired,
                    p.id              AS prescription_id,
                    p.status          AS prescription_status,
                    COALESCE(p.total_amount, 0.00) AS prescription_amount,
@@ -115,6 +119,27 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
                                @Param("profileId") Long profileId, @Param("name") String name,
                                @Param("phone") String phone);
 
+    @Select("SELECT TIMESTAMPADD(MINUTE, #{minutes}, CURRENT_TIMESTAMP)")
+    LocalDateTime newPaymentDeadline(@Param("minutes") int minutes);
+
+    @Select("""
+            SELECT id FROM appointment
+             WHERE status = 'unpaid' AND payment_deadline <= CURRENT_TIMESTAMP
+             ORDER BY payment_deadline, id LIMIT #{size}
+            """)
+    List<Long> expiredPaymentIds(@Param("size") int size);
+
+    @Select("SELECT payment_deadline <= CURRENT_TIMESTAMP FROM appointment WHERE id = #{id}")
+    Boolean hasExpiredPaymentDeadline(@Param("id") Long id);
+
+    @Update("""
+            UPDATE appointment
+               SET status = 'cancelled', cancellation_type = 'payment_timeout',
+                   cancellation_reason = '未在保留时间内支付，号源已释放'
+             WHERE id = #{id} AND status = 'unpaid' AND payment_deadline <= CURRENT_TIMESTAMP
+            """)
+    int cancelExpiredPayment(@Param("id") Long id);
+
     /** 支付：仅 unpaid 可流转，user_id 保证不能替别人付款。 */
     @Update("""
             UPDATE appointment
@@ -122,6 +147,7 @@ public interface AppointmentDao extends BaseMapper<Appointment> {
              WHERE id = #{id}
                AND user_id = #{userId}
                AND status = 'unpaid'
+               AND (payment_deadline IS NULL OR payment_deadline > CURRENT_TIMESTAMP)
             """)
     int markPaid(@Param("id") Long id,
                  @Param("userId") Long userId,

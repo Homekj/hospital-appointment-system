@@ -84,6 +84,8 @@ mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=9090
 
 > **IDEA 用户注意**：若之前导入的是 `backend/backend/pom.xml`，请以 `backend/pom.xml` 重新 "Add as Maven Project" 并 Reload Maven / Rebuild，旧路径已不存在。命令行编译通过即可确认源码无问题：`mvn -o clean compile -DskipTests`。
 
+新预约的支付保留期默认 15 分钟，可通过 APPOINTMENT_PAYMENT_HOLD_MINUTES（1 至 1440）调整。后端默认每 15 秒释放超时订单的号源，可通过 APPOINTMENT_EXPIRY_SCAN_DELAY 调整扫描间隔（例如 PT15S）。迁移 005 会按创建时间为既有未支付订单补齐 15 分钟截止时间，并重新统计已预约数，建议在维护窗口执行。
+
 如有医院人工导诊台联系电话，可通过环境变量 TRIAGE_HELP_PHONE 配置。患者在就医导航结果可直接联系导诊台。
 
 ### 3. 启动前端（管理员 / 医生 / 患者统一登录入口）

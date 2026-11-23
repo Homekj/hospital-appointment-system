@@ -857,6 +857,8 @@ WHERE id = ?
 - 相同预约已支付时，如支付方式相同可返回当前预约并保持幂等；状态不可支付时返回 `400`。
 - 余额不足返回 `409`，消息为“余额不足，请先充值”。
 
+待支付预约返回 paymentDeadline 和 paymentExpired。截止时间之后服务端拒绝支付，后台定期取消超时预约并释放号源。取消后 cancellationType 为 payment_timeout，cancellationReason 为患者可见原因。支付截止时间以数据库为准。
+
 ### 8.5 取消预约
 
 `PUT /api/appointments/{id}/cancel`

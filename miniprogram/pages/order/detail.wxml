@@ -5,6 +5,9 @@
       <order-status-header status="{{ order.displayStatus || order.rawStatus || order.status }}" location="{{ order.location }}" />
       <visit-progress wx:if="{{ order.displayStatus || order.rawStatus }}" status="{{ order.displayStatus || order.rawStatus }}" />
       <detail-list items="{{ detailItems }}" />
+      <van-cell wx:if="{{ order.cancellationReason }}" title="取消原因" label="{{ order.cancellationReason }}" />
+      <van-cell wx:if="{{ order.rawStatus === 'unpaid' && order.paymentExpired }}" title="支付已超时" label="订单即将自动取消，请重新预约。" />
+      <van-cell wx:elif="{{ order.rawStatus === 'unpaid' && order.paymentDeadline }}" title="请在此时间前支付" value="{{ order.paymentDeadline }}" label="超时后号源自动释放。" />
       <view wx:if="{{ order.rawStatus === 'checked_in' }}" class="card">
         <van-cell title="候诊进度" value="刷新" is-link bind:click="refreshOrder" />
         <van-cell wx:if="{{ order.waitingAhead != null }}" title="本时段前方等候" value="{{ order.waitingAhead }} 位" />

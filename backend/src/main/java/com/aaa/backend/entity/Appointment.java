@@ -60,6 +60,8 @@ public class Appointment {
     @TableField("pay_time")
     private LocalDateTime payTime;
 
+    private LocalDateTime paymentDeadline;
+
     /** unpaid / pending / checked_in / in_consultation / pending_rx_pay / completed / cancelled */
     private String status;
 

@@ -43,7 +43,7 @@
         <el-table-column label="操作" width="290" :fixed="$root.isMobile ? false : 'right'">
           <template slot-scope="{ row }">
             <el-button type="text" icon="el-icon-view" @click="showDetail(row)">详情</el-button>
-            <el-button v-if="row.status === 'unpaid'" type="text" icon="el-icon-money" @click="openPay(row)">支付</el-button>
+            <el-button v-if="row.status === 'unpaid' && !row.paymentExpired" type="text" icon="el-icon-money" @click="openPay(row)">支付</el-button>
             <el-button v-if="['unpaid', 'pending'].includes(row.status)" type="text" icon="el-icon-close" class="danger-link" @click="cancel(row)">取消</el-button>
             <el-button v-if="row.status === 'pending'" type="text" icon="el-icon-location" @click="checkIn(row)">签到</el-button>
             <el-button v-if="row.status === 'completed' && !row.evaluated" type="text" icon="el-icon-star-off" @click="openReview(row)">评价</el-button>
@@ -80,6 +80,10 @@
             <p class="muted">请留意现场叫号，接诊次序以现场安排为准。</p>
           </el-col>
           <el-col v-if="detail.status === 'in_consultation'" :span="24"><p>医生已叫号，请按现场指引前往诊室。</p></el-col>
+          <el-col v-if="detail.cancellationReason" :span="24"><p><strong>取消原因</strong>{{ detail.cancellationReason }}</p></el-col>
+          <el-col v-if="detail.status === 'unpaid' && detail.paymentDeadline" :span="24">
+            <p><strong>支付截止</strong>{{ detail.paymentDeadline }}<span v-if="detail.paymentExpired">（已超时，等待释放号源）</span></p>
+          </el-col>
           <el-col :span="24"><p><strong>备注</strong>{{ detail.remark || '-' }}</p></el-col>
         </el-row>
       </div>
@@ -91,6 +95,7 @@
 
     <el-dialog title="支付挂号费" :visible.sync="payVisible" width="400px" :close-on-click-modal="false">
       <p style="margin:0 0 12px;font-size:14px">预约 #{{ payTarget && payTarget.id }}，应付 <strong>{{ (payTarget && payTarget.amount) | money }}</strong></p>
+      <p v-if="payTarget && payTarget.paymentDeadline" class="muted">请在 {{ payTarget.paymentDeadline }} 前支付，超时后自动释放号源。</p>
       <el-radio-group v-model="payMethod">
         <el-radio v-for="m in PAY_METHODS" :key="m.value" :label="m.value" style="display:block;margin:8px 0">{{ m.label }}</el-radio>
       </el-radio-group>
@@ -160,11 +165,18 @@ export default {
       this.payVisible = true
     },
     pay() {
-      if (!this.payTarget) return
+      if (!this.payTarget || this.paying) return
       this.paying = true
       patientApi.payAppointment(this.payTarget.id, this.payMethod)
         .then(() => { this.$message.success('支付成功'); this.payVisible = false; this.loadData() })
-        .catch(() => {})
+        .catch(() => {
+          const target = this.payTarget
+          patientApi.appointmentDetail(target.id).then(detail => {
+            if (this.payTarget !== target) return
+            if (detail.paymentExpired || detail.status !== 'unpaid') this.payVisible = false
+            this.loadData()
+          }).catch(() => {})
+        })
         .finally(() => { this.paying = false })
     },
     cancel(row) {

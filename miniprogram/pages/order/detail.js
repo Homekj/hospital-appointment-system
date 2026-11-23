@@ -27,7 +27,8 @@ Page({
     if (this.orderId) this.loadOrder(this.orderId)
     this.loadBalance()
     this.queueTimer = setInterval(() => {
-      if (this.data.order && this.data.order.rawStatus === 'checked_in') this.loadOrder(this.orderId, true)
+      const order = this.data.order
+      if (order && ['unpaid', 'checked_in'].includes(order.rawStatus)) this.loadOrder(this.orderId, true)
     }, 15000)
   },
 
@@ -74,6 +75,7 @@ Page({
         }
         this.setData({
           order,
+          payDrawerVisible: order.canPay && this.data.payDrawerVisible,
           detailItems: items,
           feeText: formatFee(order.fee),
           rxFeeText: formatFee(order.prescriptionAmount)
@@ -127,6 +129,7 @@ Page({
       this.loadBalance()
     } catch (err) {
       toast(err.message || '支付失败')
+      this.loadOrder(order.id, true)
     } finally {
       this.setData({ paying: false })
     }

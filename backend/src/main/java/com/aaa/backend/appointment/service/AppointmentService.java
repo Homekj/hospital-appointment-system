@@ -15,6 +15,7 @@ import com.aaa.backend.entity.enums.AppointmentStatus;
 import com.aaa.backend.notification.dao.UserNotificationDao;
 import com.aaa.backend.wallet.dao.BalanceLogDao;
 import com.aaa.backend.wallet.dao.WalletUserDao;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,16 @@ public class AppointmentService {
     /** 是否强制「就诊当天才能签到」；联调时可在 application.properties 配 false 放宽。 */
     @Value("${patient.check-in.same-day-only:true}")
     private boolean sameDayCheckInOnly;
+
+    @Value("${patient.appointment.payment-hold-minutes:15}")
+    private int paymentHoldMinutes = 15;
+
+    @PostConstruct
+    void validatePaymentHold() {
+        if (paymentHoldMinutes < 1 || paymentHoldMinutes > 1440) {
+            throw new IllegalArgumentException("patient.appointment.payment-hold-minutes 必须在 1 到 1440 之间");
+        }
+    }
 
     public AppointmentService(AppointmentDao appointmentDao,
                               ScheduleDao scheduleDao,
@@ -156,10 +167,11 @@ public class AppointmentService {
         entity.setRemark(request.remark());
         entity.setAmount(registrationFee.doubleValue());
         entity.setStatus(AppointmentStatus.UNPAID.value());
+        entity.setPaymentDeadline(appointmentDao.newPaymentDeadline(paymentHoldMinutes));
         appointmentDao.insert(entity);
 
-        notifyQuietly(userId, "appointment_success", "预约成功",
-                "您已成功占号，请在规定时间内完成支付", entity.getApId());
+        notifyQuietly(userId, "appointment_success", "号源已保留",
+                "请在 " + paymentHoldMinutes + " 分钟内支付挂号费，超时后号源将自动释放", entity.getApId());
         return requireOwned(userId, entity.getApId());
     }
 
@@ -173,6 +185,9 @@ public class AppointmentService {
         if (status == AppointmentStatus.PENDING && payMethod.equals(current.getPayMethod())) {
             return current;
         }
+        if ("payment_timeout".equals(current.getCancellationType()) || Boolean.TRUE.equals(current.getPaymentExpired())) {
+            throw paymentTimeout();
+        }
         if (!status.canPay()) {
             String message = status == AppointmentStatus.PENDING
                     ? "该预约已使用其他方式支付"
@@ -183,6 +198,9 @@ public class AppointmentService {
         // 条件更新抢状态：并发下只有一个请求能拿到影响行数 1，杜绝重复扣款
         int rows = appointmentDao.markPaid(appointmentId, userId, payMethod);
         if (rows == 0) {
+            if (Boolean.TRUE.equals(appointmentDao.hasExpiredPaymentDeadline(appointmentId))) {
+                throw paymentTimeout();
+            }
             AppointmentDetailVO refreshed = requireOwned(userId, appointmentId);
             if (AppointmentStatus.fromDatabaseValue(refreshed.getStatus()) == AppointmentStatus.PENDING
                     && payMethod.equals(refreshed.getPayMethod())) {
@@ -205,6 +223,21 @@ public class AppointmentService {
         notifyQuietly(userId, "appointment_paid", "预约成功",
                 "挂号费支付成功，请按时到院签到", appointmentId);
         return requireOwned(userId, appointmentId);
+    }
+
+    private static BusinessException paymentTimeout() {
+        return new BusinessException(BusinessErrorCode.APPOINTMENT_CONFLICT, "支付已超时，请重新预约");
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void expireUnpaid(Long appointmentId) {
+        AppointmentDetailVO locked = appointmentDao.lockByIdForUpdate(appointmentId);
+        if (locked == null || appointmentDao.cancelExpiredPayment(appointmentId) != 1) {
+            return;
+        }
+        scheduleDao.releaseBookedCount(locked.getScheduleId());
+        notifyQuietly(locked.getUserId(), "appointment_payment_timeout", "预约已超时取消",
+                "未在保留时间内完成支付，号源已释放。您可重新选择时段。", appointmentId);
     }
 
     /** 取消：条件更新防止重复取消；只有取消成功才释放号源、才退款。 */

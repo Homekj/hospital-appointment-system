@@ -194,7 +194,10 @@ CREATE TABLE appointment (
     amount        DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT '挂号费用',
     pay_method    VARCHAR(20) DEFAULT NULL COMMENT 'balance/wechat/alipay',
     pay_time      DATETIME    DEFAULT NULL COMMENT '支付时间',
+    payment_deadline DATETIME DEFAULT NULL COMMENT '待支付截止时间',
     check_in_time DATETIME(6) DEFAULT NULL COMMENT '到院签到时间',
+    cancellation_type VARCHAR(24) DEFAULT NULL,
+    cancellation_reason VARCHAR(200) DEFAULT NULL,
     status        VARCHAR(20) NOT NULL DEFAULT 'unpaid' COMMENT 'unpaid/pending/checked_in/in_consultation/pending_rx_pay/completed/cancelled',
     remark        VARCHAR(200) DEFAULT NULL COMMENT '备注',
     create_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -203,6 +206,7 @@ CREATE TABLE appointment (
     KEY idx_appt_user (user_id),
     KEY idx_appt_schedule (schedule_id),
     KEY idx_appt_queue (schedule_id, status, check_in_time, id),
+    KEY idx_appt_payment_deadline (status, payment_deadline, id),
     KEY idx_appt_status_time (status, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约记录';
 
@@ -1024,11 +1028,15 @@ JOIN department d ON d.id = doc.department_id
 WHERE a.patient_phone = '13988010003' LIMIT 1;
 
 -- -----------------------------------------------------------------------------
--- 同步排班已预约数
+-- 同步待支付保留期和排班已预约数
 -- -----------------------------------------------------------------------------
+
+UPDATE appointment
+SET payment_deadline = TIMESTAMPADD(MINUTE, 15, create_time), update_time = update_time
+WHERE status = 'unpaid' AND payment_deadline IS NULL;
 
 UPDATE schedule s
 SET s.booked_count = (
     SELECT COUNT(*) FROM appointment a
-    WHERE a.schedule_id = s.id AND a.status NOT IN ('cancelled', 'unpaid')
+    WHERE a.schedule_id = s.id AND a.status <> 'cancelled'
 );

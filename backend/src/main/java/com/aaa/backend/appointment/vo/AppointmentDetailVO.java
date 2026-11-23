@@ -39,6 +39,12 @@ public class AppointmentDetailVO {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime payTime;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime paymentDeadline;
+    private Boolean paymentExpired;
+    private String cancellationType;
+    private String cancellationReason;
+
     private String status;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime checkInTime;
